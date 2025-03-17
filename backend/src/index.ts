@@ -4,9 +4,11 @@ import { useExpressServer } from 'routing-controllers'
 import { createExpressServer } from 'routing-controllers'
 import { UserController } from './controllers/UserController'
 import dotenv from 'dotenv'
+import path from 'path'
+import { DatabaseManager } from './config/database'
 
-// Load environment variables
-dotenv.config()
+// Load environment variables from the root directory
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 const app = express()
 const port = process.env.PORT || 3000
@@ -22,7 +24,17 @@ const expressApp = createExpressServer({
 // Middleware
 expressApp.use(express.json())
 
-// Start server
-expressApp.listen(port, () => {
-  console.log(`Server is running on port ${port} in ${nodeEnv} mode`)
-})
+// Connect to MongoDB and start server
+const dbManager = DatabaseManager.getInstance()
+
+dbManager
+  .connect()
+  .then(() => {
+    expressApp.listen(port, () => {
+      console.log(`Server is running on port ${port} in ${nodeEnv} mode`)
+    })
+  })
+  .catch(error => {
+    console.error('Failed to start server:', error)
+    process.exit(1)
+  })
