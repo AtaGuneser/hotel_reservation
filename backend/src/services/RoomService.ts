@@ -1,6 +1,7 @@
 import { Service } from 'typedi'
 import { Room, IRoom, RoomCategory } from '../models/Room'
 import { IRoomService } from '../interfaces/IRoomService'
+import { CreateRoomDto } from '../dto/room.dto'
 
 @Service()
 export class RoomService implements IRoomService {  
@@ -14,10 +15,17 @@ export class RoomService implements IRoomService {
     return this.rooms.find(room => room.id === id) || null
   }
 
-  async create (data: Partial<IRoom>): Promise<IRoom> {
-    const room = new Room(data)
+  async create (roomData: CreateRoomDto): Promise<Room> {
+    console.log('ROOM SERVICE - Creating room with data:', JSON.stringify(roomData, null, 2))
+    
+    const room = new Room(roomData)
     room.id = Math.random().toString(36).substr(2, 9)
+    
+    console.log('ROOM SERVICE - Room object before save:', JSON.stringify(room, null, 2))
+    
     this.rooms.push(room)
+    console.log('ROOM SERVICE - Room saved successfully:', JSON.stringify(room, null, 2))
+    
     return room
   }
 

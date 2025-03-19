@@ -117,17 +117,24 @@ export default function Rooms() {
       amenities: filteredAmenities
     }
 
-    await createRoom.mutateAsync(roomData)
-    setIsCreateDialogOpen(false)
-    setNewRoom({
-      roomNumber: "",
-      category: RoomCategory.STANDARD,
-      price: 0,
-      capacity: 1,
-      isAvailable: true,
-      amenities: [],
-      description: ""
-    })
+    console.log('FRONTEND - Creating room with data:', JSON.stringify(roomData, null, 2))
+    
+    try {
+      await createRoom.mutateAsync(roomData)
+      setIsCreateDialogOpen(false)
+      setNewRoom({
+        roomNumber: "",
+        category: RoomCategory.STANDARD,
+        price: 0,
+        capacity: 1,
+        isAvailable: true,
+        amenities: [],
+        description: ""
+      })
+    } catch (error) {
+      console.error('FRONTEND - Error creating room:', error)
+      toast.error("Failed to create room")
+    }
   }
 
   const handleUpdateRoom = async (e: React.FormEvent) => {

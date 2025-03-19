@@ -45,18 +45,38 @@ export class RoomController {
   @Post()
   @HttpCode(201)
   async create(
-    @Body({ validate: { validationError: { target: false, value: false } } })
-    roomData: CreateRoomDto
+    @Body() roomData: CreateRoomDto
   ) {
-    const existingRoom = await this.roomService.findByRoomNumber(roomData.roomNumber || '')
-    if (existingRoom) {
-      throw new HttpError(400, {
-        message: 'Room number already exists',
-        field: 'roomNumber'
+    try {
+      console.log('CREATE ROOM REQUEST - Received Data:', JSON.stringify(roomData, null, 2))
+
+      const existingRoom = await this.roomService.findByRoomNumber(roomData.roomNumber || '')
+      if (existingRoom) {
+        console.log('CREATE ROOM ERROR - Room number already exists:', roomData.roomNumber)
+        throw new HttpError(400, {
+          message: 'Room number already exists',
+          field: 'roomNumber'
+        })
+      }
+
+      console.log('CREATE ROOM - Calling service with data:', JSON.stringify(roomData, null, 2))
+      const createdRoom = await this.roomService.create(roomData)
+      console.log('CREATE ROOM SUCCESS - Created room:', JSON.stringify(createdRoom, null, 2))
+      
+      return createdRoom
+    } catch (error) {
+      console.error('CREATE ROOM ERROR - Full error:', error)
+      console.error('CREATE ROOM ERROR - Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+      
+      if (error instanceof HttpError) {
+        throw error
+      }
+      
+      throw new HttpError(500, {
+        message: 'Internal server error',
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       })
     }
-
-    return await this.roomService.create(roomData)
   }
 
   @Put('/:id')

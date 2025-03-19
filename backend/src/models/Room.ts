@@ -18,7 +18,7 @@ export interface IRoom {
   amenities: IAmenity[]
   isAvailable: boolean
   description?: string
-  capacity: number
+  capacity?: number
   createdAt?: Date
   updatedAt?: Date
 }
@@ -31,7 +31,7 @@ export class Room implements IRoom {
   amenities: IAmenity[]
   isAvailable: boolean
   description?: string
-  capacity: number
+  capacity?: number
   createdAt?: Date
   updatedAt?: Date
 
@@ -42,7 +42,7 @@ export class Room implements IRoom {
     this.amenities = data.amenities || []
     this.isAvailable = data.isAvailable ?? true
     this.description = data.description
-    this.capacity = data.capacity || 1
+    this.capacity = data.capacity
     this.createdAt = new Date()
     this.updatedAt = new Date()
   }

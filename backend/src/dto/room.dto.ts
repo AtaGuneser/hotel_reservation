@@ -45,7 +45,8 @@ export class CreateRoomDto {
 
   @IsNumber()
   @Min(1)
-  capacity: number
+  @IsOptional()
+  capacity?: number
 }
 
 export class UpdateRoomDto {
