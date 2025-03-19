@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@tanstack/react-query": "^5.69.0",
     "dotenv": "^16.4.7",
     "lucide-react": "^0.483.0",
     "react-router-dom": "^7.3.0"

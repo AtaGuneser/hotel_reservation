@@ -8,11 +8,11 @@ import { RoomController } from './controllers/RoomController'
 import dotenv from 'dotenv'
 import path from 'path'
 import { DatabaseManager } from './config/database'
+import cors from 'cors'
 
 // Load environment variables from the root directory
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
-const app = express()
 const port = process.env.PORT || 3000
 const nodeEnv = process.env.NODE_ENV || 'development'
 
@@ -23,10 +23,15 @@ useContainer(Container)
 const expressApp = createExpressServer({
   controllers: [UserController, RoomController], 
   middlewares: [], 
-  defaultErrorHandler: false
+  defaultErrorHandler: false,
+  cors: {
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+  }
 })
 
-// Middleware
 expressApp.use(express.json())
 
 // Connect to MongoDB and start server

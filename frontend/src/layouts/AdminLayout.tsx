@@ -11,27 +11,27 @@ import {
 const sidebarItems = [
   {
     title: "Dashboard",
-    href: "/admin",
+    href: "/",
     icon: LayoutDashboard,
   },
   {
     title: "Rooms",
-    href: "/admin/rooms",
+    href: "/rooms",
     icon: BedDouble,
   },
   {
     title: "Bookings",
-    href: "/admin/bookings",
+    href: "/bookings",
     icon: Calendar,
   },
   {
     title: "Users",
-    href: "/admin/users",
+    href: "/users",
     icon: Users,
   },
   {
     title: "Settings",
-    href: "/admin/settings",
+    href: "/settings",
     icon: Settings,
   },
 ]
