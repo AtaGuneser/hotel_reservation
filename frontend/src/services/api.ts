@@ -49,10 +49,7 @@ export const roomService = {
     const response = await fetch(`${API_URL}/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...room,
-        isAvailable: true
-      }),
+      body: JSON.stringify(room),
     })
     if (!response.ok) throw new Error('Failed to create room')
     return response.json()
@@ -68,16 +65,10 @@ export const roomService = {
   update: async (id: string, data: Partial<CreateRoomDto>): Promise<Room> => {
     const response = await fetch(`${API_URL}/rooms/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
-
-    if (!response.ok) {
-      throw new Error('Failed to update room')
-    }
-
+    if (!response.ok) throw new Error('Failed to update room')
     return response.json()
   }
 } 

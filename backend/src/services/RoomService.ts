@@ -1,9 +1,9 @@
 import { Service } from 'typedi'
 import { Room, IRoom, RoomCategory } from '../models/Room'
-import { IRoomService } from './interfaces/IRoomService'
+import { IRoomService } from '../interfaces/IRoomService'
 
 @Service()
-export class RoomService implements IRoomService {
+export class RoomService implements IRoomService {  
   private rooms: Room[] = []
 
   async findAll (): Promise<IRoom[]> {
