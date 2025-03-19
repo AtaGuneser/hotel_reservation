@@ -21,8 +21,8 @@ useContainer(Container)
 
 // Create express app with routing-controllers
 const expressApp = createExpressServer({
-  controllers: [UserController, RoomController], // Added RoomController
-  middlewares: [], // Add your middlewares here
+  controllers: [UserController, RoomController], 
+  middlewares: [], 
   defaultErrorHandler: false
 })
 
