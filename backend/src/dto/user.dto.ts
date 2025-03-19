@@ -1,6 +1,8 @@
+import { Service } from 'typedi'
 import { IsString, IsEmail, IsEnum, MinLength } from 'class-validator'
 import { UserRole } from '../models/User'
 
+@Service()
 export class CreateUserDto {
   @IsString()
   @MinLength(2)
@@ -17,6 +19,7 @@ export class CreateUserDto {
   role: UserRole
 }
 
+@Service()
 export class UpdateUserDto {
   @IsString()
   @MinLength(2)
@@ -33,6 +36,7 @@ export class UpdateUserDto {
   role?: UserRole
 }
 
+@Service()
 export class LoginUserDto {
   @IsEmail()
   email: string
@@ -41,6 +45,7 @@ export class LoginUserDto {
   password: string
 }
 
+@Service()
 export class UserResponseDto {
   id: string
   name: string

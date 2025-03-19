@@ -1,7 +1,9 @@
+import { Service } from 'typedi'
 import { IBookingService } from './interfaces/IBookingService'
 import { IBooking, BookingStatus } from '../models/Booking'
 import { IRoomService } from './interfaces/IRoomService'
 
+@Service()
 export class BookingService implements IBookingService {
   private bookings: IBooking[] = []
 

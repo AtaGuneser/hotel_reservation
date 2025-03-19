@@ -6,33 +6,84 @@ import {
   Get,
   Post,
   Put,
-  Delete
+  Delete,
+  HttpCode,
+  HttpError
 } from 'routing-controllers'
+import { UserService } from '../services/UserService'
+import { CreateUserDto, UpdateUserDto, LoginUserDto } from '../dto/user.dto'
 
-@Controller()
+@Controller('/users')
 export class UserController {
-  @Get('/users')
-  getAll () {
-    return 'This action returns all users'
+  constructor (private userService: UserService) {}
+
+  @Get()
+  async getAll () {
+    const users = await this.userService.findAll()
+    return users
   }
 
-  @Get('/users/:id')
-  getOne (@Param('id') id: number) {
-    return 'This action returns user #' + id
+  @Get('/:id')
+  async getOne (@Param('id') id: string) {
+    const user = await this.userService.findById(id)
+    if (!user) {
+      throw new HttpError(404, 'User not found')
+    }
+    return user
   }
 
-  @Post('/users')
-  post (@Body() user: any) {
-    return 'Saving user...'
+  @Post()
+  @HttpCode(201)
+  async create (@Body() userData: CreateUserDto) {
+    const user = await this.userService.create(userData)
+    return user
   }
 
-  @Put('/users/:id')
-  put (@Param('id') id: number, @Body() user: any) {
-    return 'Updating a user...'
+  @Put('/:id')
+  async update (@Param('id') id: string, @Body() userData: UpdateUserDto) {
+    const user = await this.userService.update(id, userData)
+    if (!user) {
+      throw new HttpError(404, 'User not found')
+    }
+    return user
   }
 
-  @Delete('/users/:id')
-  sremove (@Param('id') id: number) {
-    return 'Removing user...'
+  @Delete('/:id')
+  @HttpCode(204)
+  async remove (@Param('id') id: string) {
+    const success = await this.userService.delete(id)
+    if (!success) {
+      throw new HttpError(404, 'User not found')
+    }
+    return { message: 'User deleted successfully' }
+  }
+
+  @Post('/login')
+  async login (@Body() loginData: LoginUserDto) {
+    try {
+      const { user, token } = await this.userService.authenticate(
+        loginData.email,
+        loginData.password
+      )
+      return { user, token }
+    } catch (error) {
+      throw new HttpError(401, 'Invalid credentials')
+    }
+  }
+
+  @Post('/:id/change-password')
+  async changePassword (
+    @Param('id') id: string,
+    @Body() data: { oldPassword: string; newPassword: string }
+  ) {
+    const success = await this.userService.changePassword(
+      id,
+      data.oldPassword,
+      data.newPassword
+    )
+    if (!success) {
+      throw new HttpError(400, 'Invalid old password or user not found')
+    }
+    return { message: 'Password changed successfully' }
   }
 }
