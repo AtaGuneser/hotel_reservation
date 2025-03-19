@@ -13,7 +13,7 @@ import { Container, Service } from 'typedi'
 import { UserService } from '../services/UserService'
 import { CreateUserDto, UpdateUserDto, LoginUserDto } from '../dto/user.dto'
 import { validate } from 'class-validator'
-import { HttpError } from '../utils/HttpError'
+import { HttpError, ValidationError } from '../utils/HttpError'
 
 @Controller('/users')
 @Service()
@@ -58,7 +58,7 @@ export class UserController {
         })
         throw new HttpError(400, {
           message: 'Validation failed',
-          errors: errorMessages
+          errors: convertToValidationErrors(errorMessages)
         })
       }
 
@@ -99,7 +99,7 @@ export class UserController {
         })
         throw new HttpError(400, {
           message: 'Validation failed',
-          errors: errorMessages
+          errors: convertToValidationErrors(errorMessages)
         })
       }
 
@@ -160,7 +160,7 @@ export class UserController {
         })
         throw new HttpError(400, {
           message: 'Validation failed',
-          errors: errorMessages
+          errors: convertToValidationErrors(errorMessages)
         })
       }
 
@@ -194,13 +194,14 @@ export class UserController {
         
         throw new HttpError(400, {
           message: 'Missing required fields',
-          errors
+          errors: convertToValidationErrors(errors)
         })
       }
 
       if (data.newPassword.length < 6) {
         throw new HttpError(400, {
-          message: 'New password must be at least 6 characters long'
+          message: 'New password must be at least 6 characters long',
+          errors: convertToValidationErrors(['New password must be at least 6 characters long'])
         })
       }
 
@@ -211,7 +212,8 @@ export class UserController {
       )
       if (!success) {
         throw new HttpError(400, {
-          message: 'Invalid old password or user not found'
+          message: 'Invalid old password or user not found',
+          errors: convertToValidationErrors(['Invalid old password or user not found'])
         })
       }
       return { message: 'Password changed successfully' }
@@ -225,4 +227,12 @@ export class UserController {
       })
     }
   }
+}
+
+// Convert string array to ValidationError array
+const convertToValidationErrors = (messages: string[]): ValidationError[] => {
+  return messages.map(message => ({
+    field: 'general',
+    message
+  }))
 }

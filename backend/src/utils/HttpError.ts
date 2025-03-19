@@ -1,8 +1,13 @@
 import { HttpError as BaseHttpError } from 'routing-controllers'
 
+export interface ValidationError {
+  field: string
+  message: string
+}
+
 export interface ErrorResponse {
   message: string
-  errors?: string[]
+  errors?: ValidationError[]
   field?: string
   id?: string
   error?: string

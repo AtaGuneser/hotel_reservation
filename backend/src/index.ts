@@ -21,8 +21,8 @@ useContainer(Container)
 
 // Create express app with routing-controllers
 const expressApp = createExpressServer({
-  controllers: [UserController, RoomController], 
-  middlewares: [], 
+  controllers: [RoomController, UserController],
+  middlewares: [],
   defaultErrorHandler: false,
   cors: {
     origin: 'http://localhost:5173',

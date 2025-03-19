@@ -187,7 +187,9 @@ export default function Rooms() {
 
     setIsSubmitting(true)
     try {
+      console.log('Creating room with data:', roomForm)
       await createRoom.mutateAsync(roomForm)
+      console.log('Room created successfully')
       setIsCreateDialogOpen(false)
       dispatch({ type: 'RESET' })
     } catch (error) {

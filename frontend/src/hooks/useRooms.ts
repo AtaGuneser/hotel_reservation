@@ -13,12 +13,17 @@ export const useCreateRoom = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (room: CreateRoomDto) => roomService.create(room),
+    mutationFn: (room: CreateRoomDto) => {
+      console.log('useCreateRoom - Sending request with data:', room)
+      return roomService.create(room)
+    },
     onSuccess: () => {
+      console.log('useCreateRoom - Success')
       queryClient.invalidateQueries({ queryKey: ['rooms'] })
       toast.success('Room created successfully')
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('useCreateRoom - Error:', error)
       toast.error('Failed to create room')
     },
   })

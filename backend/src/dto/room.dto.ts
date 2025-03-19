@@ -31,10 +31,9 @@ export class CreateRoomDto {
   @Min(0)
   price: number
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => AmenityDto)
-  amenities: AmenityDto[]
+  @IsNumber()
+  @IsOptional()
+  capacity?: number
 
   @IsBoolean()
   isAvailable: boolean
@@ -43,10 +42,10 @@ export class CreateRoomDto {
   @IsOptional()
   description?: string
 
-  @IsNumber()
-  @Min(1)
-  @IsOptional()
-  capacity?: number
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AmenityDto)
+  amenities: AmenityDto[]
 }
 
 export class UpdateRoomDto {
@@ -59,15 +58,12 @@ export class UpdateRoomDto {
   category?: RoomCategory
 
   @IsNumber()
-  @Min(0)
   @IsOptional()
   price?: number
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => AmenityDto)
+  @IsNumber()
   @IsOptional()
-  amenities?: AmenityDto[]
+  capacity?: number
 
   @IsBoolean()
   @IsOptional()
@@ -77,10 +73,11 @@ export class UpdateRoomDto {
   @IsOptional()
   description?: string
 
-  @IsNumber()
-  @Min(1)
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AmenityDto)
   @IsOptional()
-  capacity?: number
+  amenities?: AmenityDto[]
 }
 
 export class RoomResponseDto {
@@ -88,10 +85,10 @@ export class RoomResponseDto {
   roomNumber: string
   category: RoomCategory
   price: number
-  amenities: AmenityDto[]
+  capacity?: number
   isAvailable: boolean
   description?: string
-  capacity: number
+  amenities: AmenityDto[]
   createdAt: Date
   updatedAt: Date
 }
