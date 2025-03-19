@@ -36,13 +36,13 @@ export class Room implements IRoom {
   updatedAt?: Date
 
   constructor (data: Partial<IRoom>) {
-    this.roomNumber = data.roomNumber!
-    this.category = data.category!
-    this.price = data.price!
+    this.roomNumber = data.roomNumber || ''
+    this.category = data.category || RoomCategory.STANDARD
+    this.price = data.price || 0
     this.amenities = data.amenities || []
     this.isAvailable = data.isAvailable ?? true
     this.description = data.description
-    this.capacity = data.capacity!
+    this.capacity = data.capacity || 1
     this.createdAt = new Date()
     this.updatedAt = new Date()
   }

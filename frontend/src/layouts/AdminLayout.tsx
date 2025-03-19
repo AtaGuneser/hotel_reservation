@@ -4,8 +4,7 @@ import {
   LayoutDashboard,
   BedDouble,
   Calendar,
-  Settings,
-  Users,
+
 } from "lucide-react"
 
 const sidebarItems = [
@@ -21,19 +20,10 @@ const sidebarItems = [
   },
   {
     title: "Bookings",
-    href: "/bookings",
+    href: "/bookings",      
     icon: Calendar,
   },
-  {
-    title: "Users",
-    href: "/users",
-    icon: Users,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
+
 ]
 
 export default function AdminLayout() {

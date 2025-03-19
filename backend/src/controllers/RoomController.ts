@@ -68,7 +68,7 @@ export class RoomController {
       }
 
       // Check if room number already exists
-      const existingRoom = await this.roomService.findByRoomNumber(roomData.roomNumber)
+      const existingRoom = await this.roomService.findByRoomNumber(roomData.roomNumber || '')
       if (existingRoom) {
         throw new HttpError(400, {
           message: 'Room number already exists',

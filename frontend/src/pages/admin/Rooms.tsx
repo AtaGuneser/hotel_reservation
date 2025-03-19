@@ -2,7 +2,7 @@ import { Button } from "../../components/ui/button"
 import { Plus } from "lucide-react"
 import { DataTable } from "../../components/ui/data-table"
 import { ColumnDef } from "@tanstack/react-table"
-import { Room, CreateRoomDto } from "../../services/api"
+import { Room, CreateRoomDto, RoomCategory } from "../../services/api"
 
 import { Input } from "../../components/ui/input"
 import {
@@ -14,9 +14,10 @@ import {
 } from "../../components/ui/select"
 import { useRooms, useCreateRoom, useDeleteRoom, useUpdateRoom } from "../../hooks/useRooms"
 import { useRoomStore } from "../../store/useRoomStore"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog"
 import { Label } from "../../components/ui/label"
+import { toast } from "sonner"
 
 const ActionsCell = ({ room }: { room: Room }) => {
   const { setSelectedRoom, setIsEditDialogOpen } = useRoomStore()
@@ -51,6 +52,10 @@ const columns: ColumnDef<Room>[] = [
   {
     accessorKey: "category",
     header: "Category",
+    cell: ({ row }) => {
+      const category = row.getValue("category") as RoomCategory
+      return category.charAt(0).toUpperCase() + category.slice(1)
+    },
   },
   {
     accessorKey: "price",
@@ -69,8 +74,12 @@ const columns: ColumnDef<Room>[] = [
     header: "Capacity",
   },
   {
-    accessorKey: "status",
+    accessorKey: "isAvailable",
     header: "Status",
+    cell: ({ row }) => {
+      const isAvailable = row.getValue("isAvailable")
+      return isAvailable ? "Available" : "Occupied"
+    },
   },
   {
     id: "actions",
@@ -85,38 +94,99 @@ export default function Rooms() {
   const { isCreateDialogOpen, setIsCreateDialogOpen, isEditDialogOpen, setIsEditDialogOpen, selectedRoom } = useRoomStore()
   const [newRoom, setNewRoom] = useState<CreateRoomDto>({
     roomNumber: "",
-    category: "standard",
+    category: RoomCategory.STANDARD,
     price: 0,
     capacity: 1,
-    status: "Available",
+    isAvailable: true,
+    amenities: [],
+    description: ""
   })
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault()
-    await createRoom.mutateAsync(newRoom)
+    if (!newRoom.roomNumber || !newRoom.category || !newRoom.price || !newRoom.capacity) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    // Filter out empty amenities
+    const filteredAmenities = newRoom.amenities.filter(amenity => amenity.name.trim() !== "")
+    
+    const roomData = {
+      ...newRoom,
+      amenities: filteredAmenities
+    }
+
+    await createRoom.mutateAsync(roomData)
     setIsCreateDialogOpen(false)
     setNewRoom({
       roomNumber: "",
-      category: "standard",
+      category: RoomCategory.STANDARD,
       price: 0,
       capacity: 1,
-      status: "Available",
+      isAvailable: true,
+      amenities: [],
+      description: ""
     })
   }
 
   const handleUpdateRoom = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedRoom) return
-    await updateRoom.mutateAsync({ id: selectedRoom.id, data: newRoom })
+    if (!newRoom.roomNumber || !newRoom.category || !newRoom.price || !newRoom.capacity) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    // Filter out empty amenities
+    const filteredAmenities = newRoom.amenities.filter(amenity => amenity.name.trim() !== "")
+    
+    const roomData = {
+      ...newRoom,
+      amenities: filteredAmenities
+    }
+
+    await updateRoom.mutateAsync({ id: selectedRoom.id, data: roomData })
     setIsEditDialogOpen(false)
     setNewRoom({
       roomNumber: "",
-      category: "standard",
+      category: RoomCategory.STANDARD,
       price: 0,
       capacity: 1,
-      status: "Available",
+      isAvailable: true,
+      amenities: [],
+      description: ""
     })
   }
+
+  // Reset form when dialog opens/closes
+  useEffect(() => {
+    if (isCreateDialogOpen) {
+      setNewRoom({
+        roomNumber: "",
+        category: RoomCategory.STANDARD,
+        price: 0,
+        capacity: 1,
+        isAvailable: true,
+        amenities: [],
+        description: ""
+      })
+    }
+  }, [isCreateDialogOpen])
+
+  useEffect(() => {
+    if (isEditDialogOpen && selectedRoom) {
+      setNewRoom({
+        roomNumber: selectedRoom.roomNumber,
+        category: selectedRoom.category,
+        price: selectedRoom.price,
+        capacity: selectedRoom.capacity,
+        isAvailable: selectedRoom.isAvailable,
+        amenities: selectedRoom.amenities,
+        description: selectedRoom.description || ""
+      })
+    }
+  }, [isEditDialogOpen, selectedRoom])
 
   if (isLoading) {
     return <div className="p-6">Loading...</div>
@@ -154,17 +224,18 @@ export default function Rooms() {
                 <Select
                   value={newRoom.category}
                   onValueChange={(value) =>
-                    setNewRoom({ ...newRoom, category: value })
+                    setNewRoom({ ...newRoom, category: value as RoomCategory })
                   }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="deluxe">Deluxe</SelectItem>
-                    <SelectItem value="suite">Suite</SelectItem>
-                    <SelectItem value="presidential">Presidential</SelectItem>
+                    {Object.values(RoomCategory).map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -191,6 +262,66 @@ export default function Rooms() {
                   }
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={newRoom.description}
+                  onChange={(e) =>
+                    setNewRoom({ ...newRoom, description: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="amenities">Amenities</Label>
+                <div className="space-y-2">
+                  {newRoom.amenities.map((amenity, index) => (
+                    <div key={index} className="flex gap-2">
+                      <Input
+                        placeholder="Amenity name"
+                        value={amenity.name}
+                        onChange={(e) => {
+                          const newAmenities = [...newRoom.amenities]
+                          newAmenities[index] = { ...amenity, name: e.target.value }
+                          setNewRoom({ ...newRoom, amenities: newAmenities })
+                        }}
+                      />
+                      <Input
+                        placeholder="Description (optional)"
+                        value={amenity.description || ""}
+                        onChange={(e) => {
+                          const newAmenities = [...newRoom.amenities]
+                          newAmenities[index] = { ...amenity, description: e.target.value }
+                          setNewRoom({ ...newRoom, amenities: newAmenities })
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          const newAmenities = newRoom.amenities.filter((_, i) => i !== index)
+                          setNewRoom({ ...newRoom, amenities: newAmenities })
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setNewRoom({
+                        ...newRoom,
+                        amenities: [...newRoom.amenities, { name: "", description: "" }]
+                      })
+                    }}
+                  >
+                    Add Amenity
+                  </Button>
+                </div>
               </div>
               <Button type="submit" className="w-full">
                 Create Room
@@ -224,17 +355,18 @@ export default function Rooms() {
               <Select
                 value={newRoom.category}
                 onValueChange={(value) =>
-                  setNewRoom({ ...newRoom, category: value })
+                  setNewRoom({ ...newRoom, category: value as RoomCategory })
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="standard">Standard</SelectItem>
-                  <SelectItem value="deluxe">Deluxe</SelectItem>
-                  <SelectItem value="suite">Suite</SelectItem>
-                  <SelectItem value="presidential">Presidential</SelectItem>
+                  {Object.values(RoomCategory).map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -261,6 +393,66 @@ export default function Rooms() {
                 }
                 required
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Input
+                id="edit-description"
+                value={newRoom.description}
+                onChange={(e) =>
+                  setNewRoom({ ...newRoom, description: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-amenities">Amenities</Label>
+              <div className="space-y-2">
+                {newRoom.amenities.map((amenity, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Amenity name"
+                      value={amenity.name}
+                      onChange={(e) => {
+                        const newAmenities = [...newRoom.amenities]
+                        newAmenities[index] = { ...amenity, name: e.target.value }
+                        setNewRoom({ ...newRoom, amenities: newAmenities })
+                      }}
+                    />
+                    <Input
+                      placeholder="Description (optional)"
+                      value={amenity.description || ""}
+                      onChange={(e) => {
+                        const newAmenities = [...newRoom.amenities]
+                        newAmenities[index] = { ...amenity, description: e.target.value }
+                        setNewRoom({ ...newRoom, amenities: newAmenities })
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        const newAmenities = newRoom.amenities.filter((_, i) => i !== index)
+                        setNewRoom({ ...newRoom, amenities: newAmenities })
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setNewRoom({
+                      ...newRoom,
+                      amenities: [...newRoom.amenities, { name: "", description: "" }]
+                    })
+                  }}
+                >
+                  Add Amenity
+                </Button>
+              </div>
             </div>
             <Button type="submit" className="w-full">
               Update Room

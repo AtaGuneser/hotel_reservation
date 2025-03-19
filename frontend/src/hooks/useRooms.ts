@@ -44,7 +44,7 @@ export const useUpdateRoom = () => {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateRoomDto> }) =>
-      roomService.update({ id, ...data }),
+      roomService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] })
       toast.success('Room updated successfully')

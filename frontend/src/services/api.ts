@@ -1,18 +1,35 @@
+export enum RoomCategory {
+  STANDARD = 'standard',
+  DELUXE = 'deluxe',
+  SUITE = 'suite',
+  PRESIDENTIAL = 'presidential'
+}
+
 export interface Room {
   id: string
   roomNumber: string
-  category: string
+  category: RoomCategory
   price: number
   capacity: number
-  status: string
+  isAvailable: boolean
+  amenities: Array<{
+    name: string
+    description?: string
+  }>
+  description?: string
 }
 
 export interface CreateRoomDto {
   roomNumber: string
-  category: string
+  category: RoomCategory
   price: number
   capacity: number
-  status: string
+  isAvailable: boolean
+  amenities: Array<{
+    name: string
+    description?: string
+  }>
+  description?: string
 }
 
 export interface UpdateRoomDto extends Partial<CreateRoomDto> {
@@ -32,7 +49,10 @@ export const roomService = {
     const response = await fetch(`${API_URL}/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(room),
+      body: JSON.stringify({
+        ...room,
+        isAvailable: true
+      }),
     })
     if (!response.ok) throw new Error('Failed to create room')
     return response.json()
@@ -45,13 +65,19 @@ export const roomService = {
     if (!response.ok) throw new Error('Failed to delete room')
   },
 
-  update: async ({ id, ...data }: UpdateRoomDto): Promise<Room> => {
+  update: async (id: string, data: Partial<CreateRoomDto>): Promise<Room> => {
     const response = await fetch(`${API_URL}/rooms/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(data),
     })
-    if (!response.ok) throw new Error('Failed to update room')
+
+    if (!response.ok) {
+      throw new Error('Failed to update room')
+    }
+
     return response.json()
   }
 } 
