@@ -4,6 +4,7 @@ import { useExpressServer, useContainer } from 'routing-controllers'
 import { createExpressServer } from 'routing-controllers'
 import { Container } from 'typedi'
 import { UserController } from './controllers/UserController'
+import { RoomController } from './controllers/RoomController'
 import dotenv from 'dotenv'
 import path from 'path'
 import { DatabaseManager } from './config/database'
@@ -20,7 +21,7 @@ useContainer(Container)
 
 // Create express app with routing-controllers
 const expressApp = createExpressServer({
-  controllers: [UserController], // Add your controllers here
+  controllers: [UserController, RoomController], // Added RoomController
   middlewares: [], // Add your middlewares here
   defaultErrorHandler: false
 })
