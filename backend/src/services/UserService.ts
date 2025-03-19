@@ -1,6 +1,6 @@
 import { Service } from 'typedi'
 import { IUserService } from './interfaces/IUserService'
-import { IUser } from '../models/User'
+import { IUser, UserRole } from '../models/User'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { config } from '../config/config'
@@ -26,7 +26,7 @@ export class UserService implements IUserService {
       password: hashedPassword,
       firstName: data.firstName!,
       lastName: data.lastName!,
-      role: data.role!,
+      role: data.role as UserRole || UserRole.USER,
       createdAt: new Date(),
       updatedAt: new Date()
     }

@@ -10,12 +10,18 @@ import {
   HttpCode,
   HttpError
 } from 'routing-controllers'
+import { Container, Service } from 'typedi'
 import { UserService } from '../services/UserService'
 import { CreateUserDto, UpdateUserDto, LoginUserDto } from '../dto/user.dto'
 
 @Controller('/users')
+@Service()
 export class UserController {
-  constructor (private userService: UserService) {}
+  private userService: UserService
+
+  constructor() {
+    this.userService = Container.get(UserService)
+  }
 
   @Get()
   async getAll () {

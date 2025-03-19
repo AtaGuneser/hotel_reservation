@@ -1,7 +1,8 @@
 import 'reflect-metadata'
 import express from 'express'
-import { useExpressServer } from 'routing-controllers'
+import { useExpressServer, useContainer } from 'routing-controllers'
 import { createExpressServer } from 'routing-controllers'
+import { Container } from 'typedi'
 import { UserController } from './controllers/UserController'
 import dotenv from 'dotenv'
 import path from 'path'
@@ -13,6 +14,9 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 const app = express()
 const port = process.env.PORT || 3000
 const nodeEnv = process.env.NODE_ENV || 'development'
+
+// Enable dependency injection
+useContainer(Container)
 
 // Create express app with routing-controllers
 const expressApp = createExpressServer({
