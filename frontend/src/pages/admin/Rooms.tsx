@@ -14,17 +14,81 @@ import {
 } from "../../components/ui/select"
 import { useRooms, useCreateRoom, useDeleteRoom, useUpdateRoom } from "../../hooks/useRooms"
 import { useRoomStore } from "../../store/useRoomStore"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useReducer, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog"
 import { Label } from "../../components/ui/label"
 import { toast } from "sonner"
+import { z } from "zod"
+
+// Form validation schema
+const roomSchema = z.object({
+  roomNumber: z.string().min(1, "Room number is required"),
+  category: z.nativeEnum(RoomCategory),
+  price: z.number().min(0, "Price must be positive"),
+  capacity: z.number().min(1, "Capacity must be at least 1").optional(),
+  isAvailable: z.boolean(),
+  description: z.string().optional(),
+  amenities: z.array(z.object({
+    name: z.string().min(1, "Amenity name is required"),
+    description: z.string().optional()
+  }))
+})
+
+type RoomFormState = CreateRoomDto & {
+  errors?: Record<string, string>
+}
+
+type RoomFormAction = 
+  | { type: 'SET_FIELD'; field: keyof RoomFormState; value: string | number | boolean | RoomCategory | Array<{ name: string; description?: string }> }
+  | { type: 'SET_ERRORS'; errors: Record<string, string> }
+  | { type: 'RESET' }
+  | { type: 'SET_ROOM'; room: Room }
+
+const initialRoomState: RoomFormState = {
+  roomNumber: "",
+  category: RoomCategory.STANDARD,
+  price: 0,
+  capacity: 1,
+  isAvailable: true,
+  amenities: [],
+  description: ""
+}
+
+function roomFormReducer(state: RoomFormState, action: RoomFormAction): RoomFormState {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.field]: action.value }
+    case 'SET_ERRORS':
+      return { ...state, errors: action.errors }
+    case 'RESET':
+      return initialRoomState
+    case 'SET_ROOM':
+      return {
+        roomNumber: action.room.roomNumber,
+        category: action.room.category,
+        price: action.room.price,
+        capacity: action.room.capacity,
+        isAvailable: action.room.isAvailable,
+        amenities: action.room.amenities,
+        description: action.room.description || ""
+      }
+    default:
+      return state
+  }
+}
 
 const ActionsCell = ({ room }: { room: Room }) => {
   const { setSelectedRoom, setIsEditDialogOpen } = useRoomStore()
   const deleteRoom = useDeleteRoom()
 
   const handleDelete = async () => {
-    await deleteRoom.mutateAsync(room.id)
+    try {
+      await deleteRoom.mutateAsync(room.id)
+      toast.success("Room deleted successfully")
+    } catch (error) {
+      console.error('Error deleting room:', error)
+      toast.error("Failed to delete room")
+    }
   }
 
   const handleEdit = () => {
@@ -92,106 +156,77 @@ export default function Rooms() {
   const createRoom = useCreateRoom()
   const updateRoom = useUpdateRoom()
   const { isCreateDialogOpen, setIsCreateDialogOpen, isEditDialogOpen, setIsEditDialogOpen, selectedRoom } = useRoomStore()
-  const [newRoom, setNewRoom] = useState<CreateRoomDto>({
-    roomNumber: "",
-    category: RoomCategory.STANDARD,
-    price: 0,
-    capacity: 1,
-    isAvailable: true,
-    amenities: [],
-    description: ""
-  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [roomForm, dispatch] = useReducer(roomFormReducer, initialRoomState)
+
+  const validateForm = useCallback(() => {
+    try {
+      roomSchema.parse(roomForm)
+      dispatch({ type: 'SET_ERRORS', errors: {} })
+      return true
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors: Record<string, string> = {}
+        error.errors.forEach((err: z.ZodIssue) => {
+          if (err.path[0]) {
+            errors[err.path[0].toString()] = err.message
+          }
+        })
+        dispatch({ type: 'SET_ERRORS', errors })
+      }
+      return false
+    }
+  }, [roomForm])
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newRoom.roomNumber || !newRoom.category || !newRoom.price || !newRoom.capacity) {
-      toast.error("Please fill in all required fields")
+    if (!validateForm()) {
+      toast.error("Please fix the validation errors")
       return
     }
 
-    // Filter out empty amenities
-    const filteredAmenities = newRoom.amenities.filter(amenity => amenity.name.trim() !== "")
-    
-    const roomData = {
-      ...newRoom,
-      amenities: filteredAmenities
-    }
-
-    console.log('FRONTEND - Creating room with data:', JSON.stringify(roomData, null, 2))
-    
+    setIsSubmitting(true)
     try {
-      await createRoom.mutateAsync(roomData)
+      await createRoom.mutateAsync(roomForm)
       setIsCreateDialogOpen(false)
-      setNewRoom({
-        roomNumber: "",
-        category: RoomCategory.STANDARD,
-        price: 0,
-        capacity: 1,
-        isAvailable: true,
-        amenities: [],
-        description: ""
-      })
+      dispatch({ type: 'RESET' })
     } catch (error) {
-      console.error('FRONTEND - Error creating room:', error)
+      console.error('Error creating room:', error)
       toast.error("Failed to create room")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   const handleUpdateRoom = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedRoom) return
-    if (!newRoom.roomNumber || !newRoom.category || !newRoom.price || !newRoom.capacity) {
-      toast.error("Please fill in all required fields")
+    if (!selectedRoom || !validateForm()) {
+      toast.error("Please fix the validation errors")
       return
     }
 
-    // Filter out empty amenities
-    const filteredAmenities = newRoom.amenities.filter(amenity => amenity.name.trim() !== "")
-    
-    const roomData = {
-      ...newRoom,
-      amenities: filteredAmenities
+    setIsSubmitting(true)
+    try {
+      await updateRoom.mutateAsync({ id: selectedRoom.id, data: roomForm })
+      setIsEditDialogOpen(false)
+      dispatch({ type: 'RESET' })
+    } catch (error) {
+      console.error('Error updating room:', error)
+      toast.error("Failed to update room")
+    } finally {
+      setIsSubmitting(false)
     }
-
-    await updateRoom.mutateAsync({ id: selectedRoom.id, data: roomData })
-    setIsEditDialogOpen(false)
-    setNewRoom({
-      roomNumber: "",
-      category: RoomCategory.STANDARD,
-      price: 0,
-      capacity: 1,
-      isAvailable: true,
-      amenities: [],
-      description: ""
-    })
   }
 
-  // Reset form when dialog opens/closes
   useEffect(() => {
     if (isCreateDialogOpen) {
-      setNewRoom({
-        roomNumber: "",
-        category: RoomCategory.STANDARD,
-        price: 0,
-        capacity: 1,
-        isAvailable: true,
-        amenities: [],
-        description: ""
-      })
+      dispatch({ type: 'RESET' })
     }
   }, [isCreateDialogOpen])
 
   useEffect(() => {
     if (isEditDialogOpen && selectedRoom) {
-      setNewRoom({
-        roomNumber: selectedRoom.roomNumber,
-        category: selectedRoom.category,
-        price: selectedRoom.price,
-        capacity: selectedRoom.capacity,
-        isAvailable: selectedRoom.isAvailable,
-        amenities: selectedRoom.amenities,
-        description: selectedRoom.description || ""
-      })
+      dispatch({ type: 'SET_ROOM', room: selectedRoom })
     }
   }, [isEditDialogOpen, selectedRoom])
 
@@ -219,19 +254,22 @@ export default function Rooms() {
                 <Label htmlFor="roomNumber">Room Number</Label>
                 <Input
                   id="roomNumber"
-                  value={newRoom.roomNumber}
+                  value={roomForm.roomNumber}
                   onChange={(e) =>
-                    setNewRoom({ ...newRoom, roomNumber: e.target.value })
+                    dispatch({ type: 'SET_FIELD', field: 'roomNumber', value: e.target.value })
                   }
                   required
                 />
+                {roomForm.errors?.roomNumber && (
+                  <p className="text-sm text-red-500">{roomForm.errors.roomNumber}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
                 <Select
-                  value={newRoom.category}
+                  value={roomForm.category}
                   onValueChange={(value) =>
-                    setNewRoom({ ...newRoom, category: value as RoomCategory })
+                    dispatch({ type: 'SET_FIELD', field: 'category', value: value as RoomCategory })
                   }
                 >
                   <SelectTrigger>
@@ -251,9 +289,9 @@ export default function Rooms() {
                 <Input
                   id="price"
                   type="number"
-                  value={newRoom.price}
+                  value={roomForm.price}
                   onChange={(e) =>
-                    setNewRoom({ ...newRoom, price: Number(e.target.value) })
+                    dispatch({ type: 'SET_FIELD', field: 'price', value: Number(e.target.value) })
                   }
                   required
                 />
@@ -263,9 +301,9 @@ export default function Rooms() {
                 <Input
                   id="capacity"
                   type="number"
-                  value={newRoom.capacity}
+                  value={roomForm.capacity}
                   onChange={(e) =>
-                    setNewRoom({ ...newRoom, capacity: Number(e.target.value) })
+                    dispatch({ type: 'SET_FIELD', field: 'capacity', value: Number(e.target.value) })
                   }
                   required
                 />
@@ -274,33 +312,33 @@ export default function Rooms() {
                 <Label htmlFor="description">Description</Label>
                 <Input
                   id="description"
-                  value={newRoom.description}
+                  value={roomForm.description}
                   onChange={(e) =>
-                    setNewRoom({ ...newRoom, description: e.target.value })
+                    dispatch({ type: 'SET_FIELD', field: 'description', value: e.target.value })
                   }
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="amenities">Amenities</Label>
                 <div className="space-y-2">
-                  {newRoom.amenities.map((amenity, index) => (
+                  {roomForm.amenities.map((amenity, index) => (
                     <div key={index} className="flex gap-2">
                       <Input
                         placeholder="Amenity name"
                         value={amenity.name}
                         onChange={(e) => {
-                          const newAmenities = [...newRoom.amenities]
+                          const newAmenities = [...roomForm.amenities]
                           newAmenities[index] = { ...amenity, name: e.target.value }
-                          setNewRoom({ ...newRoom, amenities: newAmenities })
+                          dispatch({ type: 'SET_FIELD', field: 'amenities', value: newAmenities })
                         }}
                       />
                       <Input
                         placeholder="Description (optional)"
                         value={amenity.description || ""}
                         onChange={(e) => {
-                          const newAmenities = [...newRoom.amenities]
+                          const newAmenities = [...roomForm.amenities]
                           newAmenities[index] = { ...amenity, description: e.target.value }
-                          setNewRoom({ ...newRoom, amenities: newAmenities })
+                          dispatch({ type: 'SET_FIELD', field: 'amenities', value: newAmenities })
                         }}
                       />
                       <Button
@@ -308,8 +346,8 @@ export default function Rooms() {
                         variant="destructive"
                         size="sm"
                         onClick={() => {
-                          const newAmenities = newRoom.amenities.filter((_, i) => i !== index)
-                          setNewRoom({ ...newRoom, amenities: newAmenities })
+                          const newAmenities = roomForm.amenities.filter((_, i) => i !== index)
+                          dispatch({ type: 'SET_FIELD', field: 'amenities', value: newAmenities })
                         }}
                       >
                         Remove
@@ -320,18 +358,15 @@ export default function Rooms() {
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      setNewRoom({
-                        ...newRoom,
-                        amenities: [...newRoom.amenities, { name: "", description: "" }]
-                      })
+                      dispatch({ type: 'SET_FIELD', field: 'amenities', value: [...roomForm.amenities, { name: "", description: "" }] })
                     }}
                   >
                     Add Amenity
                   </Button>
                 </div>
               </div>
-              <Button type="submit" className="w-full">
-                Create Room
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create Room"}
               </Button>
             </form>
           </DialogContent>
@@ -350,9 +385,9 @@ export default function Rooms() {
               <Label htmlFor="edit-roomNumber">Room Number</Label>
               <Input
                 id="edit-roomNumber"
-                value={newRoom.roomNumber}
+                value={roomForm.roomNumber}
                 onChange={(e) =>
-                  setNewRoom({ ...newRoom, roomNumber: e.target.value })
+                  dispatch({ type: 'SET_FIELD', field: 'roomNumber', value: e.target.value })
                 }
                 required
               />
@@ -360,9 +395,9 @@ export default function Rooms() {
             <div className="space-y-2">
               <Label htmlFor="edit-category">Category</Label>
               <Select
-                value={newRoom.category}
+                value={roomForm.category}
                 onValueChange={(value) =>
-                  setNewRoom({ ...newRoom, category: value as RoomCategory })
+                  dispatch({ type: 'SET_FIELD', field: 'category', value: value as RoomCategory })
                 }
               >
                 <SelectTrigger>
@@ -382,9 +417,9 @@ export default function Rooms() {
               <Input
                 id="edit-price"
                 type="number"
-                value={newRoom.price}
+                value={roomForm.price}
                 onChange={(e) =>
-                  setNewRoom({ ...newRoom, price: Number(e.target.value) })
+                  dispatch({ type: 'SET_FIELD', field: 'price', value: Number(e.target.value) })
                 }
                 required
               />
@@ -394,9 +429,9 @@ export default function Rooms() {
               <Input
                 id="edit-capacity"
                 type="number"
-                value={newRoom.capacity}
+                value={roomForm.capacity}
                 onChange={(e) =>
-                  setNewRoom({ ...newRoom, capacity: Number(e.target.value) })
+                  dispatch({ type: 'SET_FIELD', field: 'capacity', value: Number(e.target.value) })
                 }
                 required
               />
@@ -405,33 +440,33 @@ export default function Rooms() {
               <Label htmlFor="edit-description">Description</Label>
               <Input
                 id="edit-description"
-                value={newRoom.description}
+                value={roomForm.description}
                 onChange={(e) =>
-                  setNewRoom({ ...newRoom, description: e.target.value })
+                  dispatch({ type: 'SET_FIELD', field: 'description', value: e.target.value })
                 }
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-amenities">Amenities</Label>
               <div className="space-y-2">
-                {newRoom.amenities.map((amenity, index) => (
+                {roomForm.amenities.map((amenity, index) => (
                   <div key={index} className="flex gap-2">
                     <Input
                       placeholder="Amenity name"
                       value={amenity.name}
                       onChange={(e) => {
-                        const newAmenities = [...newRoom.amenities]
+                        const newAmenities = [...roomForm.amenities]
                         newAmenities[index] = { ...amenity, name: e.target.value }
-                        setNewRoom({ ...newRoom, amenities: newAmenities })
+                        dispatch({ type: 'SET_FIELD', field: 'amenities', value: newAmenities })
                       }}
                     />
                     <Input
                       placeholder="Description (optional)"
                       value={amenity.description || ""}
                       onChange={(e) => {
-                        const newAmenities = [...newRoom.amenities]
+                        const newAmenities = [...roomForm.amenities]
                         newAmenities[index] = { ...amenity, description: e.target.value }
-                        setNewRoom({ ...newRoom, amenities: newAmenities })
+                        dispatch({ type: 'SET_FIELD', field: 'amenities', value: newAmenities })
                       }}
                     />
                     <Button
@@ -439,8 +474,8 @@ export default function Rooms() {
                       variant="destructive"
                       size="sm"
                       onClick={() => {
-                        const newAmenities = newRoom.amenities.filter((_, i) => i !== index)
-                        setNewRoom({ ...newRoom, amenities: newAmenities })
+                        const newAmenities = roomForm.amenities.filter((_, i) => i !== index)
+                        dispatch({ type: 'SET_FIELD', field: 'amenities', value: newAmenities })
                       }}
                     >
                       Remove
@@ -451,18 +486,15 @@ export default function Rooms() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setNewRoom({
-                      ...newRoom,
-                      amenities: [...newRoom.amenities, { name: "", description: "" }]
-                    })
+                    dispatch({ type: 'SET_FIELD', field: 'amenities', value: [...roomForm.amenities, { name: "", description: "" }] })
                   }}
                 >
                   Add Amenity
                 </Button>
               </div>
             </div>
-            <Button type="submit" className="w-full">
-              Update Room
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Updating..." : "Update Room"}
             </Button>
           </form>
         </DialogContent>
