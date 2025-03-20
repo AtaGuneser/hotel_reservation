@@ -1,72 +1,98 @@
-import mongoose from 'mongoose'
+import { MongoClient, Db } from 'mongodb'
 import dotenv from 'dotenv'
 import path from 'path'
+import { logger } from '../utils/logger'
 
 // Load environment variables from the root directory
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') })
 
-export const connectDB = async () => {
-  try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel_reservation'
-    console.log('Connecting to MongoDB...')
-    await mongoose.connect(mongoURI)
-    console.log('MongoDB Connected Successfully')
-  } catch (error) {
-    console.error('MongoDB Connection Error:', error)
-    process.exit(1)
-  }
-}
-
 export class DatabaseManager {
   private static instance: DatabaseManager
-  private client: mongoose.Connection
-  private db: mongoose.Connection | null = null
+  private client: MongoClient
+  private db: Db | null = null
+  private connected = false
 
-  private constructor () {
-    const mongoUri = process.env.MONGODB_URI
-    if (!mongoUri) {
-      throw new Error('MONGODB_URI is not defined in environment variables')
-    }
-    this.client = mongoose.createConnection(mongoUri)
+  private constructor() {
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel_reservation'
+    this.client = new MongoClient(mongoUri)
   }
 
-  public static getInstance (): DatabaseManager {
+  /**
+   * Get the singleton instance of DatabaseManager
+   * @returns DatabaseManager instance
+   */
+  public static getInstance(): DatabaseManager {
     if (!DatabaseManager.instance) {
       DatabaseManager.instance = new DatabaseManager()
     }
     return DatabaseManager.instance
   }
 
-  public async connect (): Promise<void> {
+  /**
+   * Connect to MongoDB
+   * @throws Error if connection fails
+   */
+  public async connect(): Promise<void> {
+    if (this.connected) {
+      return
+    }
+
     try {
-      const mongoUri = process.env.MONGODB_URI
-      if (!mongoUri) {
-        throw new Error('MONGODB_URI is not defined in environment variables')
-      }
-      await this.client.openUri(mongoUri)
-      this.db = this.client
-      console.log('Connected to MongoDB')
+      await this.client.connect()
+      this.db = this.client.db()
+      this.connected = true
+      logger.info('Connected to MongoDB successfully')
     } catch (error) {
-      console.error('MongoDB connection error:', error)
+      logger.error('MongoDB connection error:', error)
       throw error
     }
   }
 
-  public async disconnect (): Promise<void> {
+  /**
+   * Disconnect from MongoDB
+   * @throws Error if disconnection fails
+   */
+  public async disconnect(): Promise<void> {
+    if (!this.connected) {
+      return
+    }
+
     try {
       await this.client.close()
       this.db = null
-      console.log('Disconnected from MongoDB')
+      this.connected = false
+      logger.info('Disconnected from MongoDB')
     } catch (error) {
-      console.error('Error disconnecting from MongoDB:', error)
+      logger.error('Error disconnecting from MongoDB:', error)
       throw error
     }
   }
 
-  public getDb (): mongoose.Connection {
+  /**
+   * Get the MongoDB database instance
+   * @returns Db instance
+   * @throws Error if not connected to database
+   */
+  public getDb(): Db {
     if (!this.db) {
-      throw new Error('Database not connected')
+      throw new Error('Database not connected. Call connect() first.')
     }
     return this.db
+  }
+
+  /**
+   * Check if connected to the database
+   * @returns true if connected, false otherwise
+   */
+  public isConnected(): boolean {
+    return this.connected
+  }
+
+  /**
+   * Get the MongoDB client instance
+   * @returns MongoClient instance
+   */
+  public getClient(): MongoClient {
+    return this.client
   }
 }

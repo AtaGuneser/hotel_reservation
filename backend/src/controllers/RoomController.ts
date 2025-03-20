@@ -7,7 +7,8 @@ import {
   Post,
   Put,
   Delete,
-  QueryParam
+  QueryParam,
+  HttpError
 } from 'routing-controllers'
 import { Service } from 'typedi'
 import { RoomService } from '../services/RoomService'
@@ -24,30 +25,37 @@ export class RoomController {
   @Get('/list')
   @ResponseSchema(RoomResponseDto, { isArray: true })
   async getRooms(): Promise<IRoom<"api">[]> {
-    return this.roomService.findAll()
+    try {
+      return await this.roomService.findAll()
+    } catch (error) {
+      logger.error('Error listing rooms:', error)
+      throw new HttpError(500, 'Failed to list rooms')
+    }
   }
 
   @Get('/get/:id')
   @ResponseSchema(RoomResponseDto)
   async getRoom(@Param('id') id: string): Promise<IRoom<"api">> {
-    return await this.roomService.findById(id)
+    try {
+      return await this.roomService.findById(id)
+    } catch (error) {
+      logger.error(`Error getting room ${id}:`, error)
+      throw new HttpError(404, `Room with id ${id} not found`)
+    }
   }
 
   @Post('/create')
   @ResponseSchema(RoomResponseDto)
-  async createRoom(
-    @Body() payload: CreateRoomDto
-  ): Promise<IRoom<"api">> {
-    logger.info('CREATE ROOM PAYLOAD: ', JSON.stringify(payload, null, 2))
-    
+  async createRoom(@Body() payload: CreateRoomDto): Promise<IRoom<"api">> {
     try {
-      // When using routing-controllers with proper validation setup,
-      // we don't need manual validation here anymore
-      // The payload should already be validated and transformed
+      logger.info('Creating room with payload:', JSON.stringify(payload, null, 2))
       return await this.roomService.create(payload)
     } catch (error) {
       logger.error('Error creating room:', error)
-      throw error
+      if (error instanceof Error && error.message.includes('already exists')) {
+        throw new HttpError(409, error.message)
+      }
+      throw new HttpError(500, 'Failed to create room')
     }
   }
 
@@ -58,25 +66,26 @@ export class RoomController {
     @Body() payload: UpdateRoomDto
   ): Promise<IRoom<"api">> {
     try {
-      logger.info(`UPDATE ROOM - ID: ${id}, Payload:`, JSON.stringify(payload, null, 2))
-      
-      if (typeof payload.category === 'string') {
-        payload.category = payload.category.toLowerCase() as RoomCategory
-      }
-      
+      logger.info(`Updating room ${id} with payload:`, JSON.stringify(payload, null, 2))
       return await this.roomService.update(id, payload)
     } catch (error) {
-      logger.error('Error updating room:', error)
-      logger.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
-      throw error
+      logger.error(`Error updating room ${id}:`, error)
+      if (error instanceof Error && error.message.includes('not found')) {
+        throw new HttpError(404, error.message)
+      }
+      throw new HttpError(500, `Failed to update room ${id}`)
     }
   }
 
   @Delete('/delete/:id')
-  @ResponseSchema(RoomResponseDto)
   async deleteRoom(@Param('id') id: string): Promise<{ success: boolean }> {
-    const result = await this.roomService.delete(id)
-    return { success: result }
+    try {
+      const result = await this.roomService.delete(id)
+      return { success: result }
+    } catch (error) {
+      logger.error(`Error deleting room ${id}:`, error)
+      throw new HttpError(500, `Failed to delete room ${id}`)
+    }
   }
 
   @Get('/available')
@@ -86,6 +95,15 @@ export class RoomController {
     @QueryParam('checkOut') checkOut: Date,
     @QueryParam('category') category?: string
   ): Promise<IRoom<"api">[]> {
-    return await this.roomService.findAvailableRooms(checkIn, checkOut, category as any)
+    try {
+      return await this.roomService.findAvailableRooms(
+        checkIn, 
+        checkOut, 
+        category as RoomCategory
+      )
+    } catch (error) {
+      logger.error('Error finding available rooms:', error)
+      throw new HttpError(500, 'Failed to find available rooms')
+    }
   }
 }

@@ -1,116 +1,121 @@
 import { Service } from 'typedi'
-import { MongoClient, ObjectId } from 'mongodb'
-import { IRoom, RoomCategory } from '../models/Room'
+import { ObjectId, Collection } from 'mongodb'
+import { IRoom, RoomCategory, ROOMS_COLLECTION, DbRoom, ApiRoom } from '../models/Room'
 import { IRoomService } from '../interfaces/IRoomService'
-import { CreateRoomDto } from '../dto/room.dto'
+import { CreateRoomDto, UpdateRoomDto } from '../dto/room.dto'
 import { logger } from '../utils/logger'
+import { DatabaseManager } from '../config/database'
 
 @Service()
 export class RoomService implements IRoomService {  
-  private client: MongoClient
-  private db: any
+  private rooms: Collection<DbRoom> | null = null
+  private dbManager: DatabaseManager
 
   constructor() {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017'
-    this.client = new MongoClient(mongoURI)
+    this.dbManager = DatabaseManager.getInstance()
   }
 
-  async connect() {
+  async connect(): Promise<void> {
     try {
-      await this.client.connect()
-      this.db = this.client.db('hotel_reservation')
-      logger.info('Connected to MongoDB')
+      if (!this.dbManager.isConnected()) {
+        await this.dbManager.connect()
+      }
+      this.rooms = this.dbManager.getDb().collection(ROOMS_COLLECTION)
+      logger.info('RoomService connected to MongoDB')
     } catch (error) {
-      logger.error('MongoDB Connection Error:', error)
+      logger.error('RoomService MongoDB connection error:', error)
       throw error
     }
   }
 
+  private getCollection(): Collection<DbRoom> {
+    if (!this.rooms) {
+      throw new Error('RoomService not connected to database')
+    }
+    return this.rooms
+  }
+
   async findAll(): Promise<IRoom<"api">[]> {
     try {
-      logger.info('ROOM SERVICE - Finding all rooms')
-      const rooms = await this.db.collection('rooms').find().toArray()
-      logger.info('ROOM SERVICE - Found rooms:', JSON.stringify(rooms, null, 2))
+      const rooms = await this.getCollection().find().toArray()
       return rooms.map(this.transformToApi)
     } catch (error) {
-      logger.error('ROOM SERVICE - Error finding all rooms:', error)
-      logger.error('ROOM SERVICE - Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+      logger.error('Error finding all rooms:', error)
       throw error
     }
   }
 
   async findById(id: string): Promise<IRoom<"api">> {
     try {
-      logger.info('ROOM SERVICE - Finding room by id:', id)
-      const room = await this.db.collection('rooms').findOne({ _id: new ObjectId(id) })
+      const room = await this.getCollection().findOne({ _id: new ObjectId(id) })
       if (!room) {
-        throw new Error('Room not found')
+        throw new Error(`Room with id ${id} not found`)
       }
-      logger.info('ROOM SERVICE - Found room:', JSON.stringify(room, null, 2))
       return this.transformToApi(room)
     } catch (error) {
-      logger.error('ROOM SERVICE - Error finding room by id:', error)
-      logger.error('ROOM SERVICE - Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+      logger.error(`Error finding room by id ${id}:`, error)
       throw error
     }
   }
 
-  async create(roomData: CreateRoomDto): Promise<IRoom<"api">> {
+  async create(data: CreateRoomDto): Promise<IRoom<"api">> {
     try {
-      logger.info('ROOM SERVICE - Creating room with data:', JSON.stringify(roomData, null, 2))
-      
       // Check if room number already exists
-      const existingRoom = await this.findByRoomNumber(roomData.roomNumber)
+      const existingRoom = await this.findByRoomNumber(data.roomNumber)
       if (existingRoom) {
-        throw new Error(`Room with number ${roomData.roomNumber} already exists`)
+        throw new Error(`Room with number ${data.roomNumber} already exists`)
       }
-      
-      // Transform category to lowercase if it's a string
-      if (typeof roomData.category === 'string') {
-        roomData.category = roomData.category.toLowerCase() as RoomCategory
-      }
-      
+
+      // Ensure category is in the correct format
+      const category = typeof data.category === 'string' 
+        ? data.category.toLowerCase() as RoomCategory 
+        : data.category
+
       const now = new Date()
-      const dbRoom: IRoom<"db"> = {
-        ...roomData,
+      const room: DbRoom = {
         _id: new ObjectId(),
+        roomNumber: data.roomNumber,
+        category,
+        price: Number(data.price),
+        capacity: Number(data.capacity),
+        isAvailable: Boolean(data.isAvailable),
+        description: data.description,
+        amenities: data.amenities || [],
         createdAt: now,
         updatedAt: now,
         lastStatusChangeAt: now,
+        statusChangeReason: undefined,
         metadata: {},
         createdBy: new ObjectId('000000000000000000000000') // TODO: Get from auth context
       }
-      
-      const result = await this.db.collection('rooms').insertOne(dbRoom)
-      const savedRoom = await this.db.collection('rooms').findOne({ _id: result.insertedId })
-      logger.info('ROOM SERVICE - Room saved successfully:', JSON.stringify(savedRoom, null, 2))
-      return this.transformToApi(savedRoom)
+
+      await this.getCollection().insertOne(room)
+      return this.transformToApi(room)
     } catch (error) {
-      logger.error('ROOM SERVICE - Error creating room:', error)
-      logger.error('ROOM SERVICE - Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+      logger.error('Error creating room:', error)
       throw error
     }
   }
 
-  async update(id: string, data: Partial<IRoom<"api">>): Promise<IRoom<"api">> {
+  async update(id: string, data: UpdateRoomDto): Promise<IRoom<"api">> {
     try {
-      logger.info('ROOM SERVICE - Updating room:', id, 'with data:', JSON.stringify(data, null, 2))
+      const updateData: Partial<DbRoom> = { ...data, updatedAt: new Date() }
       
-      // Clone the data to avoid modifying the original object
-      const updateData = { ...data }
-      
-      // Remove id field if present as it's not part of the document structure
-      delete updateData.id
-      
-      // Transform category to lowercase if it's a string
+      // Handle category conversion if needed
       if (updateData.category && typeof updateData.category === 'string') {
         updateData.category = updateData.category.toLowerCase() as RoomCategory
       }
       
-      // Add updated timestamp
-      updateData.updatedAt = new Date()
+      // Handle numeric values
+      if (updateData.price !== undefined) updateData.price = Number(updateData.price)
+      if (updateData.capacity !== undefined) updateData.capacity = Number(updateData.capacity)
+      if (updateData.isAvailable !== undefined) updateData.isAvailable = Boolean(updateData.isAvailable)
       
-      const result = await this.db.collection('rooms').findOneAndUpdate(
+      // Remove id if present (it's not part of the DB schema)
+      delete (updateData as any).id
+      
+      // Update the document
+      const result = await this.getCollection().findOneAndUpdate(
         { _id: new ObjectId(id) },
         { $set: updateData },
         { returnDocument: 'after' }
@@ -120,59 +125,51 @@ export class RoomService implements IRoomService {
         throw new Error(`Room with id ${id} not found`)
       }
       
-      logger.info('ROOM SERVICE - Room updated successfully:', JSON.stringify(result, null, 2))
       return this.transformToApi(result)
     } catch (error) {
-      logger.error('ROOM SERVICE - Error updating room:', error)
-      logger.error('ROOM SERVICE - Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+      logger.error(`Error updating room ${id}:`, error)
       throw error
     }
   }
 
   async delete(id: string): Promise<boolean> {
     try {
-      logger.info('ROOM SERVICE - Deleting room:', id)
-      const result = await this.db.collection('rooms').deleteOne({ _id: new ObjectId(id) })
-      logger.info('ROOM SERVICE - Delete result:', result)
+      const result = await this.getCollection().deleteOne({ _id: new ObjectId(id) })
       return result.deletedCount > 0
     } catch (error) {
-      logger.error('ROOM SERVICE - Error deleting room:', error)
-      logger.error('ROOM SERVICE - Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+      logger.error(`Error deleting room ${id}:`, error)
       throw error
     }
   }
 
   async findByRoomNumber(roomNumber: string): Promise<IRoom<"api"> | null> {
     try {
-      logger.info('ROOM SERVICE - Finding room by number:', roomNumber)
-      const room = await this.db.collection('rooms').findOne({ roomNumber })
-      logger.info('ROOM SERVICE - Found room:', room ? JSON.stringify(room, null, 2) : 'null')
+      const room = await this.getCollection().findOne({ roomNumber })
       return room ? this.transformToApi(room) : null
     } catch (error) {
-      logger.error('ROOM SERVICE - Error finding room by number:', error)
-      logger.error('ROOM SERVICE - Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+      logger.error(`Error finding room by number ${roomNumber}:`, error)
       throw error
     }
   }
 
   async findAvailableRooms(checkIn: Date, checkOut: Date, category?: RoomCategory): Promise<IRoom<"api">[]> {
     try {
-      logger.info('ROOM SERVICE - Finding available rooms for dates:', { checkIn, checkOut, category })
       const query: any = { isAvailable: true }
       if (category) {
-        query.category = category.toLowerCase()
+        query.category = typeof category === 'string' 
+          ? category.toLowerCase() 
+          : category
       }
-      const rooms = await this.db.collection('rooms').find(query).toArray()
-      logger.info('ROOM SERVICE - Found available rooms:', JSON.stringify(rooms, null, 2))
+      
+      const rooms = await this.getCollection().find(query).toArray()
       return rooms.map(this.transformToApi)
     } catch (error) {
-      logger.error('ROOM SERVICE - Error finding available rooms:', error)
-      logger.error('ROOM SERVICE - Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+      logger.error('Error finding available rooms:', error)
       throw error
     }
   }
 
-  private transformToApi(dbRoom: IRoom<"db">): IRoom<"api"> {
+  private transformToApi(dbRoom: DbRoom): ApiRoom {
     return {
       ...dbRoom,
       id: dbRoom._id.toString(),
