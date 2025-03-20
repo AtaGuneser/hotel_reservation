@@ -1,21 +1,41 @@
+import { ObjectId } from 'mongodb'
+
 export enum BookingStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
-  CHECKED_IN = 'checked_in',
-  CHECKED_OUT = 'checked_out',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
+  COMPLETED = 'completed'
 }
 
-export interface IBooking {
-  id?: string
-  userId: string
-  roomId: string
-  checkIn: Date
-  checkOut: Date
-  status: BookingStatus
+// MongoDB'de saklanan model
+export interface DbBooking {
+  _id: ObjectId
+  roomId: ObjectId
+  userId: ObjectId
+  startDate: Date
+  endDate: Date
+  guestCount: number
   totalPrice: number
-  numberOfGuests: number
+  status: BookingStatus
   specialRequests?: string
-  createdAt?: Date
-  updatedAt?: Date
+  createdAt: Date
+  updatedAt: Date
 }
+
+// API'de kullanılan model
+export interface ApiBooking {
+  id: string
+  roomId: string
+  userId: string
+  startDate: Date
+  endDate: Date
+  guestCount: number
+  totalPrice: number
+  status: BookingStatus
+  specialRequests?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Bu koleksiyon ismini servis içinde kullanacağız
+export const BOOKINGS_COLLECTION = 'bookings'

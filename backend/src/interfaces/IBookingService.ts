@@ -1,21 +1,13 @@
-import { IBooking, BookingStatus } from '../models/Booking'
-import { IBaseService } from './IBaseService'
+import { ApiBooking } from '../models/Booking'
+import { CreateBookingDto, UpdateBookingDto } from '../dto/booking.dto'
 
-export interface IBookingService extends IBaseService<IBooking> {
-  findByUserId(userId: string): Promise<IBooking[]>
-  findByRoomId(roomId: string): Promise<IBooking[]>
-  updateStatus(
-    bookingId: string,
-    status: BookingStatus
-  ): Promise<IBooking | null>
-  findOverlappingBookings(
-    roomId: string,
-    checkIn: Date,
-    checkOut: Date
-  ): Promise<IBooking[]>
-  calculateTotalPrice(
-    roomId: string,
-    checkIn: Date,
-    checkOut: Date
-  ): Promise<number>
+export interface IBookingService {
+  connect(): Promise<void>
+  findAll(): Promise<ApiBooking[]>
+  findAllByUserId(userId: string): Promise<ApiBooking[]>
+  findById(id: string): Promise<ApiBooking | null>
+  create(bookingData: CreateBookingDto): Promise<ApiBooking>
+  update(id: string, bookingData: UpdateBookingDto): Promise<ApiBooking>
+  delete(id: string): Promise<boolean>
+  checkAvailability(roomId: string, startDate: Date, endDate: Date): Promise<boolean>
 }

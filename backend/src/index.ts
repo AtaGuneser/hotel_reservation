@@ -4,8 +4,10 @@ import { useExpressServer, Action, RoutingControllersOptions, useContainer } fro
 import { Container } from 'typedi'
 import { RoomController } from './controllers/RoomController'
 import { UserController } from './controllers/UserController'
+import { BookingController } from './controllers/BookingController'
 import { RoomService } from './services/RoomService'
 import { UserService } from './services/UserService'
+import { BookingService } from './services/BookingService'
 import cors from 'cors'
 import { logger } from './utils/logger'
 import { JwtPayload } from './middleware/auth.middleware'
@@ -31,6 +33,9 @@ async function initializeServices() {
   
   const userService = Container.get(UserService)
   await userService.connect()
+  
+  const bookingService = Container.get(BookingService)
+  await bookingService.connect()
   
   logger.info('Services initialized successfully')
 }
@@ -92,7 +97,7 @@ const currentUserChecker = async (action: Action) => {
 
 // Setup routing-controllers
 const routingControllersOptions: RoutingControllersOptions = {
-  controllers: [RoomController, UserController],
+  controllers: [RoomController, UserController, BookingController],
   routePrefix: '',
   validation: true,
   classTransformer: true,

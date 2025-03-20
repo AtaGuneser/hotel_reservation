@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ReactNode } from 'react'
-import { authService, ApiUser, LoginCredentials, UserRole } from '../services/api'
+import { authAPI, ApiUser, LoginCredentials, UserRole } from '../services/api'
 import { AuthContext } from './context'
 
 interface AuthProviderProps {
@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true)
       setError(null)
       
-      const response = await authService.login(credentials)
+      const response = await authAPI.login(credentials.email, credentials.password)
       setUser(response.user)
       setToken(response.token)
       

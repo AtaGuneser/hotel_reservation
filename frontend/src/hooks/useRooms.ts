@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { roomService, CreateRoomDto } from '../services/api'
+import { roomsAPI, CreateRoomDto, UpdateRoomDto } from '../services/api'
 import { toast } from 'sonner'
 
 export const useRooms = () => {
   return useQuery({
     queryKey: ['rooms'],
-    queryFn: roomService.getAll,
+    queryFn: roomsAPI.getAll,
   })
 }
 
@@ -15,7 +15,7 @@ export const useCreateRoom = () => {
   return useMutation({
     mutationFn: (room: CreateRoomDto) => {
       console.log('useCreateRoom - Sending request with data:', room)
-      return roomService.create(room)
+      return roomsAPI.create(room)
     },
     onSuccess: () => {
       console.log('useCreateRoom - Success')
@@ -38,7 +38,7 @@ export const useDeleteRoom = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: string) => roomService.delete(id),
+    mutationFn: (id: string) => roomsAPI.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] })
       toast.success('Room deleted successfully')
@@ -54,7 +54,7 @@ export const useUpdateRoom = () => {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateRoomDto> }) =>
-      roomService.update(id, data),
+        roomsAPI.update(id, data as UpdateRoomDto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] })
       toast.success('Room updated successfully')

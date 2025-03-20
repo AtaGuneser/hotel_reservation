@@ -4,69 +4,94 @@ import {
   IsNumber,
   IsDate,
   IsOptional,
-  Min
+  Min,
+  IsISO8601,
+  IsUUID,
+  ValidateIf
 } from 'class-validator'
 import { Type } from 'class-transformer'
 import { BookingStatus } from '../models/Booking'
 
 export class CreateBookingDto {
-  @IsString()
-  userId: string
-
-  @IsString()
+  @IsString({ message: 'Room ID must be a string' })
   roomId: string
 
-  @IsDate()
+  @IsString({ message: 'User ID must be a string' })
+  @IsOptional()
+  userId?: string
+
+  @IsISO8601()
   @Type(() => Date)
-  checkIn: Date
+  startDate: Date
 
-  @IsDate()
+  @IsISO8601()
   @Type(() => Date)
-  checkOut: Date
+  endDate: Date
 
-  @IsNumber()
-  @Min(1)
-  numberOfGuests: number
+  @IsNumber({}, { message: 'Guest count must be a number' })
+  @Min(1, { message: 'Guest count must be at least 1' })
+  guestCount: number
 
-  @IsString()
+  @IsNumber({}, { message: 'Total price must be a number' })
+  @Min(0, { message: 'Total price must be positive' })
+  totalPrice: number
+
+  @IsEnum(BookingStatus, { message: 'Invalid booking status' })
+  @IsOptional()
+  status?: BookingStatus = BookingStatus.PENDING
+
+  @IsString({ message: 'Special requests must be a string' })
   @IsOptional()
   specialRequests?: string
 }
 
 export class UpdateBookingDto {
-  @IsEnum(BookingStatus)
+  @IsString({ message: 'Room ID must be a string' })
+  @IsOptional()
+  roomId?: string
+
+  @IsString({ message: 'User ID must be a string' })
+  @IsOptional()
+  userId?: string
+
+  @IsISO8601()
+  @Type(() => Date)
+  @IsOptional()
+  startDate?: Date
+
+  @IsISO8601()
+  @Type(() => Date)
+  @IsOptional()
+  endDate?: Date
+
+  @IsNumber({}, { message: 'Guest count must be a number' })
+  @Min(1, { message: 'Guest count must be at least 1' })
+  @IsOptional()
+  guestCount?: number
+
+  @IsNumber({}, { message: 'Total price must be a number' })
+  @Min(0, { message: 'Total price must be positive' })
+  @IsOptional()
+  totalPrice?: number
+
+  @IsEnum(BookingStatus, { message: 'Invalid booking status' })
   @IsOptional()
   status?: BookingStatus
 
-  @IsDate()
-  @Type(() => Date)
-  @IsOptional()
-  checkIn?: Date
-
-  @IsDate()
-  @Type(() => Date)
-  @IsOptional()
-  checkOut?: Date
-
-  @IsNumber()
-  @Min(1)
-  @IsOptional()
-  numberOfGuests?: number
-
-  @IsString()
+  @IsString({ message: 'Special requests must be a string' })
   @IsOptional()
   specialRequests?: string
 }
 
 export class BookingResponseDto {
   id: string
-  userId: string
   roomId: string
-  checkIn: Date
-  checkOut: Date
-  status: BookingStatus
+  userId: string
+  startDate: Date
+  endDate: Date
+  guestCount: number
   totalPrice: number
-  numberOfGuests: number
+  status: BookingStatus
   specialRequests?: string
   createdAt: Date
   updatedAt: Date

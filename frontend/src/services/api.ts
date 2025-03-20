@@ -1,3 +1,7 @@
+import axios from 'axios';
+import { CreateBookingDto } from '../types/booking';
+import { UpdateBookingDto } from '../types/booking';
+
 export enum RoomCategory {
   STANDARD = 'standard',
   DELUXE = 'deluxe',
@@ -70,112 +74,110 @@ export interface RegisterUserDto {
   role?: UserRole
 }
 
-const API_URL = 'http://localhost:3000'
+// API instance
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-export const roomService = {
-  getAll: async (): Promise<Room[]> => {
-    const response = await fetch(`${API_URL}/rooms/list`)
-    if (!response.ok) throw new Error('Failed to fetch rooms')
-    return response.json()
+export const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
+});
 
-  create: async (room: CreateRoomDto): Promise<Room> => {
-    console.log('API - Creating room with data:', JSON.stringify(room, null, 2))
-    try {
-      const response = await fetch(`${API_URL}/rooms/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(room),
-      })
-      
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type')
-        console.error('API - Response headers:', {
-          status: response.status,
-          statusText: response.statusText,
-          contentType
-        })
-        
-        let errorMessage = `Server error: ${response.status} ${response.statusText}`
-        try {
-          const text = await response.text()
-          console.error('API - Raw error response:', text)
-          if (contentType?.includes('application/json')) {
-            const errorData = JSON.parse(text)
-            errorMessage = errorData.message || errorMessage
-          }
-        } catch (error) {
-          console.error('API - Error reading response:', error)
-        }
-        
-        throw new Error(errorMessage)
-      }
-      
-      const data = await response.json()
-      console.log('API - Success response:', data)
-      return data
-    } catch (error) {
-      console.error('API - Request failed:', error)
-      throw error
+// Request interceptor to add token to requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
   },
+  (error) => Promise.reject(error)
+);
 
-  delete: async (id: string): Promise<void> => {
-    const response = await fetch(`${API_URL}/rooms/delete/${id}`, {
-      method: 'DELETE',
-    })
-    if (!response.ok) throw new Error('Failed to delete room')
-  },
-
-  update: async (id: string, data: Partial<CreateRoomDto>): Promise<Room> => {
-    const response = await fetch(`${API_URL}/rooms/update/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) throw new Error('Failed to update room')
-    return response.json()
-  }
-}
-
-export const authService = {
-  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    try {
-      const response = await fetch(`${API_URL}/users/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Login failed')
-      }
-      
-      return response.json()
-    } catch (error) {
-      console.error('API - Login failed:', error)
-      throw error
-    }
+// Auth API
+export const authAPI = {
+  login: async (email: string, password: string) => {
+    const response = await api.post('/users/login', { email, password });
+    return response.data;
   },
   
-  register: async (userData: RegisterUserDto): Promise<ApiUser> => {
-    try {
-      const response = await fetch(`${API_URL}/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
-      }
-      
-      return response.json()
-    } catch (error) {
-      console.error('API - Registration failed:', error)
-      throw error
-    }
-  }
-} 
+  register: async (userData: RegisterUserDto) => {
+    const response = await api.post('/users', userData);
+    return response.data;
+  },
+  
+  getCurrentUser: async () => {
+    const response = await api.get('/users/me');
+    return response.data;
+  },
+};
+
+// Rooms API
+export const roomsAPI = {
+  getAll: async () => {
+    const response = await api.get('/rooms/list');
+    return response.data;
+  },
+  
+  getById: async (id: string) => {
+    const response = await api.get(`/rooms/get/${id}`);
+    return response.data;
+  },
+  
+  create: async (roomData: CreateRoomDto) => {
+    const response = await api.post('/rooms/create', roomData);
+    return response.data;
+  },
+  
+  update: async (id: string, roomData: UpdateRoomDto) => {
+    const response = await api.put(`/rooms/update/${id}`, roomData);
+    return response.data;
+  },
+  
+  delete: async (id: string) => {
+    const response = await api.delete(`/rooms/delete/${id}`);
+    return response.data;
+  },
+};
+
+// Bookings API
+export const bookingsAPI = {
+  getAll: async () => {
+    const response = await api.get('/bookings');
+    return response.data;
+  },
+  
+  getUserBookings: async () => {
+    const response = await api.get('/bookings/user');
+    return response.data;
+  },
+  
+  getById: async (id: string) => {
+    const response = await api.get(`/bookings/${id}`);
+    return response.data;
+  },
+  
+  create: async (bookingData: CreateBookingDto) => {
+    const response = await api.post('/bookings', bookingData);
+    return response.data;
+  },
+  
+  update: async (id: string, bookingData: UpdateBookingDto) => {
+    const response = await api.put(`/bookings/${id}`, bookingData);
+    return response.data;
+  },
+  
+  delete: async (id: string) => {
+    const response = await api.delete(`/bookings/${id}`);
+    return response.data;
+  },
+  
+  checkAvailability: async (roomId: string, startDate: string, endDate: string) => {
+    const response = await api.get(`/bookings/room/${roomId}/availability`, {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  },
+}; 

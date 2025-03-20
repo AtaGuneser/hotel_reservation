@@ -379,7 +379,7 @@ export default function Rooms() {
         </Dialog>
       </div>
 
-      <DataTable columns={columns} data={rooms || []} />
+      <DataTable columns={columns} data={Array.isArray(rooms) ? rooms : []} />
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { authService, RegisterUserDto, UserRole } from '../services/api'
+import { authAPI, RegisterUserDto, UserRole } from '../services/api'
 import { toast } from 'sonner'
 
 const Register: React.FC = () => {
@@ -48,7 +48,7 @@ const Register: React.FC = () => {
     setSubmitting(true)
     
     try {
-      await authService.register(formData)
+      await authAPI.register(formData)
       toast.success('Registration successful! Please log in.')
       navigate('/login')
     } catch (err) {
