@@ -39,7 +39,11 @@ export class DatabaseManager {
 
   public async connect (): Promise<void> {
     try {
-      await this.client.openUri(process.env.MONGODB_URI)
+      const mongoUri = process.env.MONGODB_URI
+      if (!mongoUri) {
+        throw new Error('MONGODB_URI is not defined in environment variables')
+      }
+      await this.client.openUri(mongoUri)
       this.db = this.client
       console.log('Connected to MongoDB')
     } catch (error) {

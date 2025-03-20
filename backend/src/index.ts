@@ -5,9 +5,10 @@ import { createExpressServer } from 'routing-controllers'
 import { Container } from 'typedi'
 import { UserController } from './controllers/UserController'
 import { RoomController } from './controllers/RoomController'
+import { RoomService } from './services/RoomService'
 import dotenv from 'dotenv'
 import path from 'path'
-import { DatabaseManager } from './config/database'
+import { MongoClient } from 'mongodb'
 import cors from 'cors'
 
 // Load environment variables from the root directory
@@ -34,17 +35,25 @@ const expressApp = createExpressServer({
 
 expressApp.use(express.json())
 
-// Connect to MongoDB and start server
-const dbManager = DatabaseManager.getInstance()
+// Connect to MongoDB
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017'
+console.log('Connecting to MongoDB...')
 
-dbManager
-  .connect()
-  .then(() => {
+const client = new MongoClient(mongoURI)
+client.connect()
+  .then(async () => {
+    console.log('MongoDB Connected Successfully')
+    
+    // Initialize RoomService
+    const roomService = Container.get(RoomService)
+    await roomService.connect()
+    
+    // Start server after successful database connection
     expressApp.listen(port, () => {
       console.log(`Server is running on port ${port} in ${nodeEnv} mode`)
     })
   })
   .catch(error => {
-    console.error('Failed to start server:', error)
+    console.error('MongoDB Connection Error:', error)
     process.exit(1)
   })
