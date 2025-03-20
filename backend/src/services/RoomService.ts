@@ -65,6 +65,11 @@ export class RoomService implements IRoomService {
         throw new Error(`Room with number ${roomData.roomNumber} already exists`)
       }
       
+      // Transform category to lowercase if it's a string
+      if (typeof roomData.category === 'string') {
+        roomData.category = roomData.category.toLowerCase() as RoomCategory
+      }
+      
       const now = new Date()
       const dbRoom: IRoom<"db"> = {
         ...roomData,

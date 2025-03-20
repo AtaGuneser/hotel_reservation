@@ -1,8 +1,8 @@
 import 'reflect-metadata'
 import express from 'express'
-import { useExpressServer, useContainer } from 'routing-controllers'
-import { createExpressServer } from 'routing-controllers'
+import { useExpressServer } from 'routing-controllers'
 import { Container } from 'typedi'
+import { useContainer } from 'routing-controllers'
 import { UserController } from './controllers/UserController'
 import { RoomController } from './controllers/RoomController'
 import { RoomService } from './services/RoomService'
@@ -18,26 +18,33 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 const port = process.env.PORT || 3000
 const nodeEnv = process.env.NODE_ENV || 'development'
 
-// Enable dependency injection
+// Set up TypeDI container
 useContainer(Container)
 
-// Create express app with routing-controllers
-const expressApp = createExpressServer({
+// Create express app
+const app = express()
+
+// Enable CORS
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}))
+
+// Enable JSON body parsing
+app.use(express.json())
+
+// Setup routing-controllers
+useExpressServer(app, {
   controllers: [RoomController, UserController],
-  middlewares: [],
-  defaultErrorHandler: false,
-  cors: {
-    origin: 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-  }
+  classTransformer: true,
+  validation: true,
+  defaultErrorHandler: false
 })
 
-expressApp.use(express.json())
-
 // Error handling middleware
-expressApp.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Error:', err)
   res.status(err.httpCode || 500).json({
     message: err.message || 'Internal Server Error',
@@ -59,7 +66,7 @@ client.connect()
     await roomService.connect()
     
     // Start server after successful database connection
-    expressApp.listen(port, () => {
+    app.listen(port, () => {
       logger.info(`Server is running on port ${port} in ${nodeEnv} mode`)
     })
   })

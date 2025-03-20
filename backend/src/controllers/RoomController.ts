@@ -15,7 +15,6 @@ import { CreateRoomDto, UpdateRoomDto, RoomResponseDto } from '../dto/room.dto'
 import { IRoom, RoomCategory } from '../models/Room'
 import { ResponseSchema } from 'routing-controllers-openapi'
 import { logger } from '../utils/logger'
-import { validate } from 'class-validator'
 
 @Service()
 @Controller('/rooms')
@@ -41,32 +40,11 @@ export class RoomController {
   ): Promise<IRoom<"api">> {
     logger.info('CREATE ROOM PAYLOAD: ', JSON.stringify(payload, null, 2))
     
-    // Transform the data
-    const transformedPayload = {
-      ...payload,
-      category: payload.category.toLowerCase() as RoomCategory,
-      price: Number(payload.price),
-      capacity: Number(payload.capacity),
-      isAvailable: Boolean(payload.isAvailable),
-      amenities: Array.isArray(payload.amenities) ? payload.amenities : []
-    }
-    
-    // Validate the payload
-    const errors = await validate(transformedPayload)
-    if (errors.length > 0) {
-      logger.error('Validation errors:', JSON.stringify(errors, null, 2))
-      const errorResponse = {
-        message: 'Invalid body, check \'errors\' property for more info.',
-        errors: errors.map(error => ({
-          property: error.property,
-          constraints: error.constraints
-        }))
-      }
-      throw new Error(JSON.stringify(errorResponse))
-    }
-    
     try {
-      return await this.roomService.create(transformedPayload)
+      // When using routing-controllers with proper validation setup,
+      // we don't need manual validation here anymore
+      // The payload should already be validated and transformed
+      return await this.roomService.create(payload)
     } catch (error) {
       logger.error('Error creating room:', error)
       throw error
@@ -79,14 +57,12 @@ export class RoomController {
     @Param('id') id: string,
     @Body() payload: UpdateRoomDto
   ): Promise<IRoom<"api">> {
-    // Validate the payload
-    const errors = await validate(payload)
-    if (errors.length > 0) {
-      logger.error('Validation errors:', errors)
-      throw new Error('Validation failed')
+    try {
+      return await this.roomService.update(id, payload)
+    } catch (error) {
+      logger.error('Error updating room:', error)
+      throw error
     }
-    
-    return await this.roomService.update(id, payload)
   }
 
   @Delete('/delete/:id')

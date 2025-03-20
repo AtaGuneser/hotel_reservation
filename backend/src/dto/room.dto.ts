@@ -44,7 +44,6 @@ export class CreateRoomDto {
 
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => AmenityDto)
   amenities: AmenityDto[]
 }
 
