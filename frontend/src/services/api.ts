@@ -36,6 +36,40 @@ export interface UpdateRoomDto extends Partial<CreateRoomDto> {
   id: string
 }
 
+// User related types
+export enum UserRole {
+  ADMIN = 'admin',
+  USER = 'user'
+}
+
+export interface ApiUser {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: UserRole
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface AuthResponse {
+  user: ApiUser
+  token: string
+}
+
+export interface RegisterUserDto {
+  email: string
+  password: string
+  firstName: string
+  lastName: string
+  role?: UserRole
+}
+
 const API_URL = 'http://localhost:3000'
 
 export const roomService = {
@@ -101,5 +135,47 @@ export const roomService = {
     })
     if (!response.ok) throw new Error('Failed to update room')
     return response.json()
+  }
+}
+
+export const authService = {
+  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    try {
+      const response = await fetch(`${API_URL}/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Login failed')
+      }
+      
+      return response.json()
+    } catch (error) {
+      console.error('API - Login failed:', error)
+      throw error
+    }
+  },
+  
+  register: async (userData: RegisterUserDto): Promise<ApiUser> => {
+    try {
+      const response = await fetch(`${API_URL}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Registration failed')
+      }
+      
+      return response.json()
+    } catch (error) {
+      console.error('API - Registration failed:', error)
+      throw error
+    }
   }
 } 

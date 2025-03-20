@@ -1,68 +1,62 @@
-import { Service } from 'typedi'
-import { IsString, IsEmail, IsEnum, MinLength, IsNotEmpty } from 'class-validator'
+import { IsEmail, IsString, MinLength, IsEnum, IsOptional, IsNotEmpty } from 'class-validator'
 import { UserRole } from '../models/User'
 
-@Service()
 export class CreateUserDto {
-  @IsString()
+  @IsEmail({}, { message: 'Invalid email format' })
+  @IsNotEmpty()
+  email: string
+
+  @IsString({ message: 'First name must be a string' })
   @IsNotEmpty()
   @MinLength(2)
   firstName: string
 
-  @IsString()
+  @IsString({ message: 'Last name must be a string' })
   @IsNotEmpty()
   @MinLength(2)
   lastName: string
 
-  @IsEmail()
+  @IsString({ message: 'Password must be a string' })
   @IsNotEmpty()
-  email: string
-
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(6)
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string
 
-  @IsEnum(UserRole)
-  @IsNotEmpty()
-  role: UserRole
-}
-
-@Service()
-export class UpdateUserDto {
-  @IsString()
-  @MinLength(2)
-  firstName?: string
-
-  @IsString()
-  @MinLength(2)
-  lastName?: string
-
-  @IsEmail()
-  email?: string
-
-  @IsString()
-  @MinLength(6)
-  password?: string
-
-  @IsEnum(UserRole)
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'Invalid user role' })
   role?: UserRole
 }
 
-@Service()
-export class LoginUserDto {
-  @IsEmail()
-  email: string
+export class UpdateUserDto {
+  @IsOptional()
+  @IsEmail({}, { message: 'Invalid email format' })
+  email?: string
 
-  @IsString()
-  password: string
+  @IsOptional()
+  @IsString({ message: 'First name must be a string' })
+  @MinLength(2)
+  firstName?: string
+
+  @IsOptional()
+  @IsString({ message: 'Last name must be a string' })
+  @MinLength(2)
+  lastName?: string
+
+  @IsOptional()
+  @IsString({ message: 'Password must be a string' })
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
+  password?: string
+
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'Invalid user role' })
+  role?: UserRole
 }
 
-@Service()
+// Response DTO - used for Swagger documentation
 export class UserResponseDto {
   id: string
-  name: string
   email: string
+  firstName: string
+  lastName: string
   role: UserRole
   createdAt: Date
   updatedAt: Date

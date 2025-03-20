@@ -1,4 +1,4 @@
-import { IBooking, BookingStatus } from '../../models/Booking'
+import { IBooking, BookingStatus } from '../models/Booking'
 import { IBaseService } from './IBaseService'
 
 export interface IBookingService extends IBaseService<IBooking> {

@@ -1,238 +1,233 @@
-import 'reflect-metadata'
 import {
-  Controller,
-  Param,
+  JsonController,
   Body,
   Get,
   Post,
   Put,
   Delete,
-  HttpCode
+  Param,
+  Authorized,
+  CurrentUser,
+  HttpCode,
+  UnauthorizedError,
+  NotFoundError,
+  BadRequestError,
+  OnUndefined
 } from 'routing-controllers'
-import { Container, Service } from 'typedi'
+import { Service } from 'typedi'
 import { UserService } from '../services/UserService'
-import { CreateUserDto, UpdateUserDto, LoginUserDto } from '../dto/user.dto'
+import { CreateUserDto, UpdateUserDto, UserResponseDto } from '../dto/user.dto'
+import { ApiUser } from '../models/User'
 import { validate } from 'class-validator'
-import { HttpError, ValidationError } from '../utils/HttpError'
+import { plainToInstance } from 'class-transformer'
+import { logger } from '../utils/logger'
+import { JwtPayload } from '../middleware/auth.middleware'
 
-@Controller('/users')
+@JsonController('/users')
 @Service()
 export class UserController {
-  private userService: UserService
-
-  constructor() {
-    this.userService = Container.get(UserService)
-  }
+  constructor(private userService: UserService) {}
 
   @Get()
-  async getAll () {
-    const users = await this.userService.findAll()
-    return users
+  @Authorized('admin')
+  async getAllUsers(): Promise<ApiUser[]> {
+    try {
+      return await this.userService.findAll()
+    } catch (error) {
+      logger.error('Failed to get users', error)
+      throw new BadRequestError('Failed to get users')
+    }
+  }
+
+  @Get('/me')
+  @Authorized()
+  async getCurrentUser(@CurrentUser() user: JwtPayload): Promise<ApiUser> {
+    try {
+      const userData = await this.userService.findById(user.id)
+      
+      if (!userData) {
+        throw new NotFoundError('User not found')
+      }
+      
+      return userData
+    } catch (error) {
+      logger.error('Failed to get current user', error)
+      throw new BadRequestError('Failed to get current user')
+    }
   }
 
   @Get('/:id')
-  async getOne (@Param('id') id: string) {
-    const user = await this.userService.findById(id)
-    if (!user) {
-      throw new HttpError(404, {
-        message: 'User not found',
-        id
-      })
+  @Authorized('admin')
+  async getUserById(@Param('id') id: string): Promise<ApiUser> {
+    try {
+      const user = await this.userService.findById(id)
+      
+      if (!user) {
+        throw new NotFoundError(`User with ID ${id} not found`)
+      }
+      
+      return user
+    } catch (error) {
+      logger.error(`Failed to get user with ID: ${id}`, error)
+      
+      if (error instanceof NotFoundError) {
+        throw error
+      }
+      
+      throw new BadRequestError(`Failed to get user with ID ${id}`)
     }
-    return user
   }
 
   @Post()
   @HttpCode(201)
-  async create (@Body() userData: CreateUserDto) {
+  async createUser(@Body() userData: CreateUserDto): Promise<UserResponseDto> {
     try {
-      // Validate the input data
-      const createUserDto = new CreateUserDto()
-      Object.assign(createUserDto, userData)
-      const errors = await validate(createUserDto)
-
+      // Validate the DTO
+      const userDto = plainToInstance(CreateUserDto, userData)
+      const errors = await validate(userDto)
+      
       if (errors.length > 0) {
-        const errorMessages = errors.map(error => {
-          const constraints = Object.values(error.constraints || {})
-          return `${error.property}: ${constraints.join(', ')}`
-        })
-        throw new HttpError(400, {
-          message: 'Validation failed',
-          errors: convertToValidationErrors(errorMessages)
-        })
+        const errorMessages = errors.map(error => 
+          Object.values(error.constraints || {}).join(', ')
+        ).join('; ')
+        
+        throw new BadRequestError(`Validation errors: ${errorMessages}`)
       }
-
-      // Check if email already exists
-      const existingUser = await this.userService.findByEmail(userData.email)
-      if (existingUser) {
-        throw new HttpError(400, {
-          message: 'Email already exists',
-          field: 'email'
-        })
-      }
-
+      
       const user = await this.userService.create(userData)
       return user
     } catch (error) {
-      if (error instanceof HttpError) {
+      logger.error('Failed to create user', error)
+      
+      if (error instanceof BadRequestError) {
         throw error
       }
-      throw new HttpError(500, {
-        message: 'Internal server error',
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      })
+      
+      throw new BadRequestError('Failed to create user')
     }
   }
 
   @Put('/:id')
-  async update (@Param('id') id: string, @Body() userData: UpdateUserDto) {
+  @Authorized()
+  async updateUser(
+    @Param('id') id: string, 
+    @Body() userData: UpdateUserDto,
+    @CurrentUser() currentUser: JwtPayload
+  ): Promise<ApiUser> {
     try {
-      // Validate the input data
-      const updateUserDto = new UpdateUserDto()
-      Object.assign(updateUserDto, userData)
-      const errors = await validate(updateUserDto)
-
+      // Check if user is admin or updating their own profile
+      if (currentUser.role !== 'admin' && currentUser.id !== id) {
+        throw new UnauthorizedError('You can only update your own profile')
+      }
+      
+      // Validate the DTO
+      const userDto = plainToInstance(UpdateUserDto, userData)
+      const errors = await validate(userDto)
+      
       if (errors.length > 0) {
-        const errorMessages = errors.map(error => {
-          const constraints = Object.values(error.constraints || {})
-          return `${error.property}: ${constraints.join(', ')}`
-        })
-        throw new HttpError(400, {
-          message: 'Validation failed',
-          errors: convertToValidationErrors(errorMessages)
-        })
+        const errorMessages = errors.map(error => 
+          Object.values(error.constraints || {}).join(', ')
+        ).join('; ')
+        
+        throw new BadRequestError(`Validation errors: ${errorMessages}`)
       }
-
-      const user = await this.userService.update(id, userData)
-      if (!user) {
-        throw new HttpError(404, {
-          message: 'User not found',
-          id
-        })
+      
+      const updatedUser = await this.userService.update(id, userData)
+      
+      if (!updatedUser) {
+        throw new NotFoundError(`User with ID ${id} not found`)
       }
-      return user
+      
+      return updatedUser
     } catch (error) {
-      if (error instanceof HttpError) {
+      logger.error(`Failed to update user with ID: ${id}`, error)
+      
+      if (error instanceof NotFoundError || error instanceof UnauthorizedError || error instanceof BadRequestError) {
         throw error
       }
-      throw new HttpError(500, {
-        message: 'Internal server error',
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      })
+      
+      throw new BadRequestError(`Failed to update user with ID ${id}`)
     }
   }
 
   @Delete('/:id')
-  @HttpCode(204)
-  async remove (@Param('id') id: string) {
+  @Authorized('admin')
+  @OnUndefined(204)
+  async deleteUser(@Param('id') id: string): Promise<void> {
     try {
-      const success = await this.userService.delete(id)
-      if (!success) {
-        throw new HttpError(404, {
-          message: 'User not found',
-          id
-        })
+      const deleted = await this.userService.delete(id)
+      
+      if (!deleted) {
+        throw new NotFoundError(`User with ID ${id} not found`)
       }
-      return { message: 'User deleted successfully' }
     } catch (error) {
-      if (error instanceof HttpError) {
+      logger.error(`Failed to delete user with ID: ${id}`, error)
+      
+      if (error instanceof NotFoundError) {
         throw error
       }
-      throw new HttpError(500, {
-        message: 'Internal server error',
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      })
+      
+      throw new BadRequestError(`Failed to delete user with ID ${id}`)
     }
   }
 
   @Post('/login')
-  async login (@Body() loginData: LoginUserDto) {
+  async login(@Body() credentials: { email: string; password: string }): Promise<{ user: ApiUser; token: string }> {
     try {
-      // Validate the input data
-      const loginUserDto = new LoginUserDto()
-      Object.assign(loginUserDto, loginData)
-      const errors = await validate(loginUserDto)
-
-      if (errors.length > 0) {
-        const errorMessages = errors.map(error => {
-          const constraints = Object.values(error.constraints || {})
-          return `${error.property}: ${constraints.join(', ')}`
-        })
-        throw new HttpError(400, {
-          message: 'Validation failed',
-          errors: convertToValidationErrors(errorMessages)
-        })
+      if (!credentials.email || !credentials.password) {
+        throw new BadRequestError('Email and password are required')
       }
-
-      const { user, token } = await this.userService.authenticate(
-        loginData.email,
-        loginData.password
-      )
-      return { user, token }
+      
+      return await this.userService.authenticate(credentials.email, credentials.password)
     } catch (error) {
-      if (error instanceof HttpError) {
+      logger.error('Login failed', error)
+      
+      if (error instanceof UnauthorizedError) {
         throw error
       }
-      throw new HttpError(401, {
-        message: 'Invalid credentials',
-        error: error instanceof Error ? error.message : 'Authentication failed'
-      })
+      
+      throw new UnauthorizedError('Invalid email or password')
     }
   }
 
-  @Post('/:id/change-password')
-  async changePassword (
-    @Param('id') id: string,
-    @Body() data: { oldPassword: string; newPassword: string }
-  ) {
+  @Post('/change-password')
+  @Authorized()
+  async changePassword(
+    @Body() data: { currentPassword: string; newPassword: string },
+    @CurrentUser() user: JwtPayload
+  ): Promise<{ success: boolean }> {
     try {
-      // Validate password requirements
-      if (!data.oldPassword || !data.newPassword) {
-        const errors: string[] = []
-        if (!data.oldPassword) errors.push('oldPassword is required')
-        if (!data.newPassword) errors.push('newPassword is required')
-        
-        throw new HttpError(400, {
-          message: 'Missing required fields',
-          errors: convertToValidationErrors(errors)
-        })
+      if (!data.currentPassword || !data.newPassword) {
+        throw new BadRequestError('Current password and new password are required')
       }
-
+      
       if (data.newPassword.length < 6) {
-        throw new HttpError(400, {
-          message: 'New password must be at least 6 characters long',
-          errors: convertToValidationErrors(['New password must be at least 6 characters long'])
-        })
+        throw new BadRequestError('New password must be at least 6 characters long')
       }
-
-      const success = await this.userService.changePassword(
-        id,
-        data.oldPassword,
+      
+      const result = await this.userService.changePassword(
+        user.id,
+        data.currentPassword,
         data.newPassword
       )
-      if (!success) {
-        throw new HttpError(400, {
-          message: 'Invalid old password or user not found',
-          errors: convertToValidationErrors(['Invalid old password or user not found'])
-        })
-      }
-      return { message: 'Password changed successfully' }
+      
+      return { success: result }
     } catch (error) {
-      if (error instanceof HttpError) {
+      logger.error('Password change failed', error)
+      
+      if (error instanceof UnauthorizedError || error instanceof BadRequestError) {
         throw error
       }
-      throw new HttpError(500, {
-        message: 'Internal server error',
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      })
+      
+      throw new BadRequestError('Failed to change password')
     }
   }
-}
 
-// Convert string array to ValidationError array
-const convertToValidationErrors = (messages: string[]): ValidationError[] => {
-  return messages.map(message => ({
-    field: 'general',
-    message
-  }))
+  @Get('/validate-token')
+  @Authorized()
+  @HttpCode(200)
+  validateToken(): { valid: true } {
+    // If we reach here, the token is valid (because of @Authorized)
+    return { valid: true }
+  }
 }

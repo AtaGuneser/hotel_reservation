@@ -1,15 +1,15 @@
-import { IUser } from '../../models/User'
-import { IBaseService } from './IBaseService'
+import { ApiUser } from '../models/User'
+import { CreateUserDto, UpdateUserDto } from '../dto/user.dto'
 
-export interface IUserService extends IBaseService<Omit<IUser, 'password'>> {
-  findByEmail(email: string): Promise<Omit<IUser, 'password'> | null>
-  authenticate(
-    email: string,
-    password: string
-  ): Promise<{ user: Omit<IUser, 'password'>; token: string }>
-  changePassword(
-    userId: string,
-    oldPassword: string,
-    newPassword: string
-  ): Promise<boolean>
+export interface IUserService {
+  connect(): Promise<void>
+  findAll(): Promise<ApiUser[]>
+  findById(id: string): Promise<ApiUser | null>
+  findByEmail(email: string): Promise<ApiUser | null>
+  create(userData: CreateUserDto): Promise<ApiUser>
+  update(id: string, userData: UpdateUserDto): Promise<ApiUser>
+  delete(id: string): Promise<boolean>
+  authenticate(email: string, password: string): Promise<{ user: ApiUser; token: string }>
+  changePassword(userId: string, currentPassword: string, newPassword: string): Promise<boolean>
+  validateToken(token: string): Promise<{ valid: boolean; user?: ApiUser }>
 }
