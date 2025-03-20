@@ -32,7 +32,7 @@ export default function BookingForm() {
   const { data: rooms } = useQuery<ApiRoom[]>({
     queryKey: ['rooms'],
     queryFn: async () => {
-      const response = await api.get('/rooms')
+      const response = await api.get('/rooms/list')
       return response.data
     }
   })

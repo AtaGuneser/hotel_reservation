@@ -2,7 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import AdminLayout from "./layouts/AdminLayout"
 import Dashboard from "./pages/admin/Dashboard"
 import Rooms from "./pages/admin/Rooms"
-import Bookings from "./pages/admin/Bookings"
+import BookingList from "./pages/BookingList"
+import BookingForm from "./pages/BookingForm"
+import BookingDetails from "./pages/BookingDetails"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -61,7 +63,12 @@ function App() {
             }>
               <Route index element={<Dashboard />} />
               <Route path="rooms" element={<Rooms />} />
-              <Route path="bookings" element={<Bookings />} />
+              
+              {/* Booking Routes - Specific routes before parametric ones */}
+              <Route path="bookings" element={<BookingList />} />
+              <Route path="bookings/new" element={<BookingForm />} />
+              <Route path="bookings/:id/edit" element={<BookingForm />} />
+              <Route path="bookings/:id" element={<BookingDetails />} />
             </Route>
             
             {/* Redirect root to admin dashboard */}

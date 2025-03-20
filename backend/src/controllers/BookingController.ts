@@ -13,7 +13,6 @@ import {
 } from 'routing-controllers'
 import { OpenAPI } from 'routing-controllers-openapi'
 import { Service } from 'typedi'
-import { IBookingService } from '../interfaces/IBookingService'
 import { BookingService } from '../services/BookingService'
 import { CreateBookingDto, UpdateBookingDto } from '../dto/booking.dto'
 import { ApiBooking, BookingStatus } from '../models/Booking'
@@ -30,7 +29,6 @@ export class BookingController {
     description: 'Get a list of all bookings',
     security: [{ bearerAuth: [] }]
   })
-  @Authorized('admin')
   async getAllBookings(): Promise<ApiBooking[]> {
     return this.bookingService.findAll();
   }
@@ -41,7 +39,7 @@ export class BookingController {
     description: 'Get a list of bookings for the current user',
     security: [{ bearerAuth: [] }]
   })
-  @Authorized()
+
   async getCurrentUserBookings(@CurrentUser() user: ApiUser): Promise<ApiBooking[]> {
     return this.bookingService.findAllByUserId(user.id);
   }
@@ -52,7 +50,7 @@ export class BookingController {
     description: 'Get a list of bookings for a specific user',
     security: [{ bearerAuth: [] }]
   })
-  @Authorized('admin')
+
   async getBookingsByUserId(@Param('userId') userId: string): Promise<ApiBooking[]> {
     return this.bookingService.findAllByUserId(userId);
   }
@@ -63,7 +61,7 @@ export class BookingController {
     description: 'Get a booking by its ID',
     security: [{ bearerAuth: [] }]
   })
-  @Authorized()
+
   async getBookingById(
     @Param('id') id: string,
     @CurrentUser() user: ApiUser
@@ -88,7 +86,6 @@ export class BookingController {
     description: 'Create a new booking with the provided data',
     security: [{ bearerAuth: [] }]
   })
-  @Authorized()
   async createBooking(
     @Body() bookingData: CreateBookingDto,
     @CurrentUser() user: ApiUser
@@ -98,7 +95,14 @@ export class BookingController {
       bookingData.userId = user.id;
     }
     
-    return this.bookingService.create(bookingData);
+    // Tarih stringlerini Date objelerine çevir
+    const formattedData = {
+      ...bookingData,
+      startDate: new Date(bookingData.startDate),
+      endDate: new Date(bookingData.endDate)
+    };
+    
+    return this.bookingService.create(formattedData);
   }
 
   @Put('/:id')
@@ -107,7 +111,7 @@ export class BookingController {
     description: 'Update a booking with the provided data',
     security: [{ bearerAuth: [] }]
   })
-  @Authorized()
+
   async updateBooking(
     @Param('id') id: string,
     @Body() bookingData: UpdateBookingDto,
@@ -154,7 +158,7 @@ export class BookingController {
     description: 'Delete a booking by its ID',
     security: [{ bearerAuth: [] }]
   })
-  @Authorized('admin')
+
   async deleteBooking(@Param('id') id: string): Promise<{ success: boolean }> {
     const success = await this.bookingService.delete(id);
     return { success };
