@@ -22,9 +22,14 @@ export const useCreateRoom = () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] })
       toast.success('Room created successfully')
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('useCreateRoom - Error:', error)
-      toast.error('Failed to create room')
+      const errorMessage = error.message || 'Failed to create room'
+      if (errorMessage.includes('Validation errors:')) {
+        toast.error(errorMessage)
+      } else {
+        toast.error('Failed to create room')
+      }
     },
   })
 }

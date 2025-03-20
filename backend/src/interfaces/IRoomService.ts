@@ -1,15 +1,12 @@
-import { IRoom, RoomCategory } from '../../models/Room'
-import { IBaseService } from './IBaseService'
+import { IRoom } from '../models/Room'
+import { CreateRoomDto } from '../dto/room.dto'
 
-export interface IRoomService extends IBaseService<IRoom> {
-  findByRoomNumber(roomNumber: string): Promise<IRoom | null>
-  findAvailableRooms(
-    checkIn: Date,
-    checkOut: Date,
-    category?: RoomCategory
-  ): Promise<IRoom[]>
-  updateAvailability(
-    roomId: string,
-    isAvailable: boolean
-  ): Promise<IRoom | null>
+export interface IRoomService {
+  findAll(): Promise<IRoom<"api">[]>
+  findById(id: string): Promise<IRoom<"api">>
+  create(roomData: CreateRoomDto): Promise<IRoom<"api">>
+  update(id: string, data: Partial<IRoom<"api">>): Promise<IRoom<"api">>
+  delete(id: string): Promise<boolean>
+  findByRoomNumber(roomNumber: string): Promise<IRoom<"api"> | null>
+  findAvailableRooms(checkIn: Date, checkOut: Date, category?: string): Promise<IRoom<"api">[]>
 }

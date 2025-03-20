@@ -194,7 +194,11 @@ export default function Rooms() {
       dispatch({ type: 'RESET' })
     } catch (error) {
       console.error('Error creating room:', error)
-      toast.error("Failed to create room")
+      if (error instanceof Error && error.message.includes('Validation errors:')) {
+        toast.error(error.message)
+      } else {
+        toast.error("Failed to create room")
+      }
     } finally {
       setIsSubmitting(false)
     }

@@ -32,8 +32,8 @@ export class CreateRoomDto {
   price: number
 
   @IsNumber()
-  @IsOptional()
-  capacity?: number
+  @Min(1)
+  capacity: number
 
   @IsBoolean()
   isAvailable: boolean
@@ -58,10 +58,12 @@ export class UpdateRoomDto {
   category?: RoomCategory
 
   @IsNumber()
+  @Min(0)
   @IsOptional()
   price?: number
 
   @IsNumber()
+  @Min(1)
   @IsOptional()
   capacity?: number
 
@@ -85,10 +87,14 @@ export class RoomResponseDto {
   roomNumber: string
   category: RoomCategory
   price: number
-  capacity?: number
+  capacity: number
   isAvailable: boolean
   description?: string
   amenities: AmenityDto[]
   createdAt: Date
   updatedAt: Date
+  lastStatusChangeAt: Date
+  statusChangeReason?: string
+  metadata: Record<string, any>
+  createdBy: string
 }

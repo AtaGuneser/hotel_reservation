@@ -10,6 +10,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { MongoClient } from 'mongodb'
 import cors from 'cors'
+import { logger } from './utils/logger'
 
 // Load environment variables from the root directory
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
@@ -35,14 +36,23 @@ const expressApp = createExpressServer({
 
 expressApp.use(express.json())
 
+// Error handling middleware
+expressApp.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Error:', err)
+  res.status(err.httpCode || 500).json({
+    message: err.message || 'Internal Server Error',
+    errors: err.errors || []
+  })
+})
+
 // Connect to MongoDB
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017'
-console.log('Connecting to MongoDB...')
+logger.info('Connecting to MongoDB...')
 
 const client = new MongoClient(mongoURI)
 client.connect()
   .then(async () => {
-    console.log('MongoDB Connected Successfully')
+    logger.info('MongoDB Connected Successfully')
     
     // Initialize RoomService
     const roomService = Container.get(RoomService)
@@ -50,10 +60,10 @@ client.connect()
     
     // Start server after successful database connection
     expressApp.listen(port, () => {
-      console.log(`Server is running on port ${port} in ${nodeEnv} mode`)
+      logger.info(`Server is running on port ${port} in ${nodeEnv} mode`)
     })
   })
   .catch(error => {
-    console.error('MongoDB Connection Error:', error)
+    logger.error('MongoDB Connection Error:', error)
     process.exit(1)
   })
