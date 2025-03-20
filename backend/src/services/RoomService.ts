@@ -1,36 +1,43 @@
 import { Service } from 'typedi'
-import { MongoClient, ObjectId, Collection } from 'mongodb'
+import { ObjectId, Collection } from 'mongodb'
 import { IRoom, RoomCategory, ROOMS_COLLECTION, DbRoom, ApiRoom } from '../models/Room'
 import { IRoomService } from '../interfaces/IRoomService'
 import { CreateRoomDto, UpdateRoomDto } from '../dto/room.dto'
 import { logger } from '../utils/logger'
+import { DatabaseManager } from '../config/database'
 
 @Service()
 export class RoomService implements IRoomService {  
-  private client: MongoClient
-  private db: any
-  private rooms: Collection<DbRoom>
+  private rooms: Collection<DbRoom> | null = null
+  private dbManager: DatabaseManager
 
   constructor() {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel_reservation'
-    this.client = new MongoClient(mongoURI)
+    this.dbManager = DatabaseManager.getInstance()
   }
 
   async connect(): Promise<void> {
     try {
-      await this.client.connect()
-      this.db = this.client.db()
-      this.rooms = this.db.collection(ROOMS_COLLECTION)
-      logger.info('Connected to MongoDB successfully')
+      if (!this.dbManager.isConnected()) {
+        await this.dbManager.connect()
+      }
+      this.rooms = this.dbManager.getDb().collection(ROOMS_COLLECTION)
+      logger.info('RoomService connected to MongoDB')
     } catch (error) {
-      logger.error('MongoDB Connection Error:', error)
+      logger.error('RoomService MongoDB connection error:', error)
       throw error
     }
   }
 
+  private getCollection(): Collection<DbRoom> {
+    if (!this.rooms) {
+      throw new Error('RoomService not connected to database. Call connect() first.')
+    }
+    return this.rooms
+  }
+
   async findAll(): Promise<IRoom<"api">[]> {
     try {
-      const rooms = await this.rooms.find().toArray()
+      const rooms = await this.getCollection().find().toArray()
       return rooms.map(this.transformToApi)
     } catch (error) {
       logger.error('Error finding all rooms:', error)
@@ -40,7 +47,7 @@ export class RoomService implements IRoomService {
 
   async findById(id: string): Promise<IRoom<"api">> {
     try {
-      const room = await this.rooms.findOne({ _id: new ObjectId(id) })
+      const room = await this.getCollection().findOne({ _id: new ObjectId(id) })
       if (!room) {
         throw new Error(`Room with id ${id} not found`)
       }
@@ -77,7 +84,7 @@ export class RoomService implements IRoomService {
         createdBy: new ObjectId('000000000000000000000000') 
       }
 
-      await this.rooms.insertOne(room)
+      await this.getCollection().insertOne(room)
       return this.transformToApi(room)
     } catch (error) {
       logger.error('Error creating room:', error)
@@ -98,7 +105,7 @@ export class RoomService implements IRoomService {
       delete (updateData as any).id
       
       // Update the document
-      const result = await this.rooms.findOneAndUpdate(
+      const result = await this.getCollection().findOneAndUpdate(
         { _id: new ObjectId(id) },
         { $set: updateData },
         { returnDocument: 'after' }
@@ -117,7 +124,7 @@ export class RoomService implements IRoomService {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const result = await this.rooms.deleteOne({ _id: new ObjectId(id) })
+      const result = await this.getCollection().deleteOne({ _id: new ObjectId(id) })
       return result.deletedCount > 0
     } catch (error) {
       logger.error(`Error deleting room ${id}:`, error)
@@ -127,7 +134,7 @@ export class RoomService implements IRoomService {
 
   async findByRoomNumber(roomNumber: string): Promise<IRoom<"api"> | null> {
     try {
-      const room = await this.rooms.findOne({ roomNumber })
+      const room = await this.getCollection().findOne({ roomNumber })
       return room ? this.transformToApi(room) : null
     } catch (error) {
       logger.error(`Error finding room by number ${roomNumber}:`, error)
@@ -144,7 +151,7 @@ export class RoomService implements IRoomService {
           : category
       }
       
-      const rooms = await this.rooms.find(query).toArray()
+      const rooms = await this.getCollection().find(query).toArray()
       return rooms.map(this.transformToApi)
     } catch (error) {
       logger.error('Error finding available rooms:', error)
