@@ -4,22 +4,23 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { ArrowLeft, Save, Calendar, Users, DollarSign, FileText } from 'lucide-react'
 import { api } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
-import { formatDateForInput, calculateNights, getMinDate, getMaxDate } from '../utils/dateUtils'
+import {  calculateNights, getMinDate, getMaxDate } from '../utils/dateUtils'
 import { BookingStatus, ApiBooking, CreateBookingDto, UpdateBookingDto } from '../types/booking'
 import { ApiRoom } from '../types/room'
+import { toast } from 'react-hot-toast'
+import axios from 'axios'
 
 export default function BookingForm() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
   const isEditMode = !!id
   
   // Form state
   const [formData, setFormData] = useState<CreateBookingDto | UpdateBookingDto>({
     roomId: '',
-    startDate: formatDateForInput(new Date()),
-    endDate: formatDateForInput(new Date(Date.now() + 86400000)), // tomorrow
+    startDate: new Date(),
+    endDate: new Date(Date.now() + 86400000), // tomorrow
     guestCount: 1,
     totalPrice: 0,
     specialRequests: ''
@@ -72,11 +73,10 @@ export default function BookingForm() {
     if (isEditMode && booking) {
       setFormData({
         roomId: booking.roomId,
-        startDate: formatDateForInput(booking.startDate),
-        endDate: formatDateForInput(booking.endDate),
+        startDate: new Date(booking.startDate),
+        endDate: new Date(booking.endDate),
         guestCount: booking.guestCount,
         totalPrice: booking.totalPrice,
-        status: booking.status,
         specialRequests: booking.specialRequests
       })
     }
@@ -87,7 +87,7 @@ export default function BookingForm() {
     if (formData.roomId && formData.startDate && formData.endDate) {
       const selectedRoom = rooms?.find(room => room.id === formData.roomId)
       if (selectedRoom) {
-        const nights = calculateNights(formData.startDate, formData.endDate)
+        const nights = calculateNights(formData.startDate.toISOString(), formData.endDate.toISOString())
         const total = selectedRoom.price * nights
         setFormData(prev => ({ ...prev, totalPrice: total }))
       }
@@ -97,7 +97,10 @@ export default function BookingForm() {
   // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: name === 'startDate' || name === 'endDate' ? new Date(value) : value 
+    }))
     
     // Clear validation error when field is changed
     if (errors[name]) {
@@ -121,10 +124,7 @@ export default function BookingForm() {
       newErrors.endDate = 'Please select a check-out date'
     }
     
-    const startDate = new Date(formData.startDate || '')
-    const endDate = new Date(formData.endDate || '')
-    
-    if (startDate >= endDate) {
+    if (formData.startDate && formData.endDate && formData.startDate >= formData.endDate) {
       newErrors.endDate = 'Check-out date must be after check-in date'
     }
     
@@ -142,33 +142,55 @@ export default function BookingForm() {
   }
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!validateForm()) {
-      return
+      return;
     }
     
-    if (isEditMode) {
-      // Filter out unchanged fields for update
-      const updatedFields = Object.entries(formData).reduce((acc, [key, value]) => {
-        if (booking && (booking as ApiBooking)[key as keyof ApiBooking] !== value) {
-          acc[key as keyof UpdateBookingDto] = value
+    const bookingData = {
+      ...formData,
+      userId: user?.id,
+      status: BookingStatus.PENDING,
+    };
+    
+    console.log('Submitting booking data:', bookingData);
+    
+    try {
+      if (isEditMode && id) {
+        await api.put(`/bookings/${id}`, bookingData);
+        toast.success('Booking updated successfully!');
+      } else {
+        const response = await api.post('/bookings', bookingData);
+        console.log('Booking creation response:', response.data);
+        toast.success('Booking created successfully!');
+      }
+    } catch (error) {
+      console.error('Error saving booking:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Server error response:', error.response.data);
+        if (error.response.data.errors) {
+          console.error('Validation errors:', error.response.data.errors);
+          interface ValidationError {
+            property: string;
+            constraints?: Record<string, string>;
+          }
+          
+          const serverErrors = error.response.data.errors.reduce((acc: Record<string, string>, err: ValidationError) => {
+            const field = err.property;
+            acc[field] = err.constraints ? Object.values(err.constraints)[0] as string : 'Invalid value';
+            return acc;
+          }, {});
+          setErrors(prev => ({ ...prev, ...serverErrors }));
+          toast.error('Please fix the validation errors');
+        } else {
+          toast.error(error.response.data.message || 'Error saving booking');
         }
-        return acc
-      }, {} as UpdateBookingDto)
-      
-      updateMutation.mutate(updatedFields)
-    } else {
-      // Set user ID for new booking
-      const newBookingData = {
-        ...formData,
-        userId: user?.id
-      } as CreateBookingDto
-      
-      createMutation.mutate(newBookingData)
+      } else {
+        toast.error('An error occurred while saving the booking');
+      }
     }
-  }
+  };
   
   // Check if room is available
   //   const checkRoomAvailability = async () => {
@@ -208,13 +230,6 @@ export default function BookingForm() {
   }
   
   // Check if the user has permission to edit this booking
-  if (isEditMode && booking && !isAdmin && booking.userId !== user?.id) {
-    return (
-      <div className="p-8 text-center text-red-500">
-        You do not have permission to edit this booking
-      </div>
-    )
-  }
   
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -239,7 +254,6 @@ export default function BookingForm() {
               value={formData.roomId}
               onChange={handleChange}
               className={`w-full p-2 border rounded-md ${errors.roomId ? 'border-red-500' : 'border-gray-300'}`}
-              disabled={isEditMode && !isAdmin}
               required
             >
               <option value="">Select a room</option>
@@ -261,7 +275,7 @@ export default function BookingForm() {
                 <input
                   type="date"
                   name="startDate"
-                  value={formData.startDate}
+                  value={formData.startDate?.toISOString().split('T')[0]}
                   onChange={handleChange}
                   min={getMinDate()}
                   max={getMaxDate()}
@@ -279,9 +293,9 @@ export default function BookingForm() {
                 <input
                   type="date"
                   name="endDate"
-                  value={formData.endDate}
+                  value={formData.endDate?.toISOString().split('T')[0]}
                   onChange={handleChange}
-                  min={formData.startDate || getMinDate()}
+                  min={formData.startDate?.toISOString().split('T')[0] || getMinDate()}
                   max={getMaxDate()}
                   className={`w-full pl-10 pr-4 py-2 border rounded-md ${errors.endDate ? 'border-red-500' : 'border-gray-300'}`}
                   required
@@ -328,7 +342,7 @@ export default function BookingForm() {
           </div>
           
           {/* Status Selection (Admin only) */}
-          {isAdmin && isEditMode && (
+          
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Status</label>
               <select
@@ -342,7 +356,7 @@ export default function BookingForm() {
                 ))}
               </select>
             </div>
-          )}
+          
           
           {/* Special Requests */}
           <div className="space-y-2">

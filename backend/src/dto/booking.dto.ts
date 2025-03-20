@@ -1,6 +1,5 @@
 import {
   IsString,
-  IsEnum,
   IsNumber,
   IsDate,
   IsOptional,
@@ -10,7 +9,6 @@ import {
   ValidateIf
 } from 'class-validator'
 import { Type } from 'class-transformer'
-import { BookingStatus } from '../models/Booking'
 
 export class CreateBookingDto {
   @IsString({ message: 'Room ID must be a string' })
@@ -20,11 +18,9 @@ export class CreateBookingDto {
   @IsOptional()
   userId?: string
 
-  @IsISO8601()
   @Type(() => Date)
   startDate: Date
 
-  @IsISO8601()
   @Type(() => Date)
   endDate: Date
 
@@ -35,10 +31,6 @@ export class CreateBookingDto {
   @IsNumber({}, { message: 'Total price must be a number' })
   @Min(0, { message: 'Total price must be positive' })
   totalPrice: number
-
-  @IsEnum(BookingStatus, { message: 'Invalid booking status' })
-  @IsOptional()
-  status?: BookingStatus = BookingStatus.PENDING
 
   @IsString({ message: 'Special requests must be a string' })
   @IsOptional()
@@ -54,12 +46,12 @@ export class UpdateBookingDto {
   @IsOptional()
   userId?: string
 
-  @IsISO8601()
+  @IsISO8601({ strict: false })
   @Type(() => Date)
   @IsOptional()
   startDate?: Date
 
-  @IsISO8601()
+  @IsISO8601({ strict: false })
   @Type(() => Date)
   @IsOptional()
   endDate?: Date
@@ -74,10 +66,6 @@ export class UpdateBookingDto {
   @IsOptional()
   totalPrice?: number
 
-  @IsEnum(BookingStatus, { message: 'Invalid booking status' })
-  @IsOptional()
-  status?: BookingStatus
-
   @IsString({ message: 'Special requests must be a string' })
   @IsOptional()
   specialRequests?: string
@@ -91,7 +79,6 @@ export class BookingResponseDto {
   endDate: Date
   guestCount: number
   totalPrice: number
-  status: BookingStatus
   specialRequests?: string
   createdAt: Date
   updatedAt: Date

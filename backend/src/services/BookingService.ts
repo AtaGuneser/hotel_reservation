@@ -3,7 +3,7 @@ import { Collection, ObjectId } from 'mongodb'
 import { MongoClient } from 'mongodb'
 import { IBookingService } from '../interfaces/IBookingService'
 import { CreateBookingDto, UpdateBookingDto } from '../dto/booking.dto'
-import { ApiBooking, DbBooking, BookingStatus, BOOKINGS_COLLECTION } from '../models/Booking'
+import { ApiBooking, DbBooking, BOOKINGS_COLLECTION } from '../models/Booking'
 import { logger } from '../utils/logger'
 import { BadRequestError, NotFoundError } from 'routing-controllers'
 
@@ -162,7 +162,6 @@ export class BookingService implements IBookingService {
         endDate,
         guestCount: bookingData.guestCount,
         totalPrice: bookingData.totalPrice,
-        status: bookingData.status || BookingStatus.PENDING,
         specialRequests: bookingData.specialRequests,
         createdAt: now,
         updatedAt: now
@@ -229,10 +228,7 @@ export class BookingService implements IBookingService {
       }
       
       // Check room availability if dates or room changed
-      if (
-        (bookingData.startDate || bookingData.endDate || bookingData.roomId) &&
-        bookingData.status !== BookingStatus.CANCELLED
-      ) {
+      if (bookingData.startDate || bookingData.endDate || bookingData.roomId) {
         const roomId = bookingData.roomId || existingBooking.roomId.toString()
         
         // Only check availability for other bookings (exclude this one)
@@ -255,7 +251,6 @@ export class BookingService implements IBookingService {
         ...(bookingData.endDate && { endDate }),
         ...(bookingData.guestCount !== undefined && { guestCount: bookingData.guestCount }),
         ...(bookingData.totalPrice !== undefined && { totalPrice: bookingData.totalPrice }),
-        ...(bookingData.status !== undefined && { status: bookingData.status }),
         ...(bookingData.specialRequests !== undefined && { specialRequests: bookingData.specialRequests }),
         updatedAt: new Date()
       }
@@ -315,7 +310,6 @@ export class BookingService implements IBookingService {
       
       const query: any = {
         roomId: new ObjectId(roomId),
-        status: { $nin: [BookingStatus.CANCELLED] },
         $or: [
           { startDate: { $lt: endDate }, endDate: { $gt: startDate } }, // Overlapping dates
         ]

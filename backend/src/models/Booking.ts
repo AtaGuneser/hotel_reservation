@@ -1,12 +1,5 @@
 import { ObjectId } from 'mongodb'
 
-export enum BookingStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  CANCELLED = 'cancelled',
-  COMPLETED = 'completed'
-}
-
 // MongoDB'de saklanan model
 export interface DbBooking {
   _id: ObjectId
@@ -16,7 +9,6 @@ export interface DbBooking {
   endDate: Date
   guestCount: number
   totalPrice: number
-  status: BookingStatus
   specialRequests?: string
   createdAt: Date
   updatedAt: Date
@@ -31,7 +23,6 @@ export interface ApiBooking {
   endDate: Date
   guestCount: number
   totalPrice: number
-  status: BookingStatus
   specialRequests?: string
   createdAt: Date
   updatedAt: Date

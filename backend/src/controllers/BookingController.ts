@@ -15,7 +15,7 @@ import { OpenAPI } from 'routing-controllers-openapi'
 import { Service } from 'typedi'
 import { BookingService } from '../services/BookingService'
 import { CreateBookingDto, UpdateBookingDto } from '../dto/booking.dto'
-import { ApiBooking, BookingStatus } from '../models/Booking'
+import { ApiBooking } from '../models/Booking'
 import { ApiUser } from '../models/User'
 
 @JsonController('/bookings')
@@ -39,7 +39,6 @@ export class BookingController {
     description: 'Get a list of bookings for the current user',
     security: [{ bearerAuth: [] }]
   })
-
   async getCurrentUserBookings(@CurrentUser() user: ApiUser): Promise<ApiBooking[]> {
     return this.bookingService.findAllByUserId(user.id);
   }
@@ -50,7 +49,6 @@ export class BookingController {
     description: 'Get a list of bookings for a specific user',
     security: [{ bearerAuth: [] }]
   })
-
   async getBookingsByUserId(@Param('userId') userId: string): Promise<ApiBooking[]> {
     return this.bookingService.findAllByUserId(userId);
   }
@@ -61,7 +59,6 @@ export class BookingController {
     description: 'Get a booking by its ID',
     security: [{ bearerAuth: [] }]
   })
-
   async getBookingById(
     @Param('id') id: string,
     @CurrentUser() user: ApiUser
@@ -88,21 +85,14 @@ export class BookingController {
   })
   async createBooking(
     @Body() bookingData: CreateBookingDto,
-    @CurrentUser() user: ApiUser
+    @CurrentUser() user: ApiUser | null
   ): Promise<ApiBooking> {
-    // Set the user ID to the current user if not provided (or not admin)
-    if (!bookingData.userId || user.role !== 'admin') {
+    // Set the user ID to the current user if not provided
+    if (!bookingData.userId && user) {
       bookingData.userId = user.id;
     }
     
-    // Tarih stringlerini Date objelerine çevir
-    const formattedData = {
-      ...bookingData,
-      startDate: new Date(bookingData.startDate),
-      endDate: new Date(bookingData.endDate)
-    };
-    
-    return this.bookingService.create(formattedData);
+    return this.bookingService.create(bookingData);
   }
 
   @Put('/:id')
@@ -111,7 +101,6 @@ export class BookingController {
     description: 'Update a booking with the provided data',
     security: [{ bearerAuth: [] }]
   })
-
   async updateBooking(
     @Param('id') id: string,
     @Body() bookingData: UpdateBookingDto,
@@ -128,20 +117,15 @@ export class BookingController {
       throw new NotFoundError(`Booking with ID ${id} not found`);
     }
     
-    // Regular users can only update status to CANCELLED and specialRequests
+    // Regular users can only update specialRequests
     if (user.role !== 'admin') {
-      const allowedFields: (keyof UpdateBookingDto)[] = ['status', 'specialRequests'];
+      const allowedFields: (keyof UpdateBookingDto)[] = ['specialRequests'];
       
       // Filter the update data to only allow specific fields for non-admin users
       const filteredData: UpdateBookingDto = {} as UpdateBookingDto;
       
       for (const field of allowedFields) {
         if (field in bookingData) {
-          // Only allow cancellation for status updates
-          if (field === 'status' && bookingData.status !== BookingStatus.CANCELLED) {
-            continue;
-          }
-          
           (filteredData as any)[field] = (bookingData as any)[field];
         }
       }
@@ -158,7 +142,6 @@ export class BookingController {
     description: 'Delete a booking by its ID',
     security: [{ bearerAuth: [] }]
   })
-
   async deleteBooking(@Param('id') id: string): Promise<{ success: boolean }> {
     const success = await this.bookingService.delete(id);
     return { success };

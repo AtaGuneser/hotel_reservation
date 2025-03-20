@@ -22,21 +22,21 @@ export interface ApiBooking {
 export interface CreateBookingDto {
   roomId: string;
   userId?: string;
-  startDate: string;
-  endDate: string;
+  startDate: Date;
+  endDate: Date;
   guestCount: number;
   totalPrice: number;
-  status?: BookingStatus | string;
+  status?: BookingStatus;
   specialRequests?: string;
 }
 
 export interface UpdateBookingDto {
   roomId?: string;
   userId?: string;
-  startDate?: string;
-  endDate?: string;
+  startDate?: Date;
+  endDate?: Date;
   guestCount?: number;
   totalPrice?: number;
-  status?: BookingStatus | string;
+  status?: BookingStatus;
   specialRequests?: string;
 } 
