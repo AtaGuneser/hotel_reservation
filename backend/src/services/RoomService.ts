@@ -96,15 +96,19 @@ export class RoomService implements IRoomService {
     try {
       logger.info('ROOM SERVICE - Updating room:', id, 'with data:', JSON.stringify(data, null, 2))
       
+      // Clone the data to avoid modifying the original object
+      const updateData = { ...data }
+      
+      // Remove id field if present as it's not part of the document structure
+      delete updateData.id
+      
       // Transform category to lowercase if it's a string
-      if (data.category && typeof data.category === 'string') {
-        data.category = data.category.toLowerCase() as RoomCategory
+      if (updateData.category && typeof updateData.category === 'string') {
+        updateData.category = updateData.category.toLowerCase() as RoomCategory
       }
       
-      const updateData = {
-        ...data,
-        updatedAt: new Date()
-      }
+      // Add updated timestamp
+      updateData.updatedAt = new Date()
       
       const result = await this.db.collection('rooms').findOneAndUpdate(
         { _id: new ObjectId(id) },
@@ -112,12 +116,12 @@ export class RoomService implements IRoomService {
         { returnDocument: 'after' }
       )
       
-      if (!result.value) {
-        throw new Error('Room not found')
+      if (!result) {
+        throw new Error(`Room with id ${id} not found`)
       }
       
-      logger.info('ROOM SERVICE - Room updated successfully:', JSON.stringify(result.value, null, 2))
-      return this.transformToApi(result.value)
+      logger.info('ROOM SERVICE - Room updated successfully:', JSON.stringify(result, null, 2))
+      return this.transformToApi(result)
     } catch (error) {
       logger.error('ROOM SERVICE - Error updating room:', error)
       logger.error('ROOM SERVICE - Stack trace:', error instanceof Error ? error.stack : 'No stack trace')

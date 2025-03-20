@@ -8,7 +8,6 @@ import {
   Min,
   ValidateNested
 } from 'class-validator'
-import { Type } from 'class-transformer'
 import { RoomCategory } from '../models/Room'
 
 export class AmenityDto {
@@ -76,7 +75,6 @@ export class UpdateRoomDto {
 
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => AmenityDto)
   @IsOptional()
   amenities?: AmenityDto[]
 }

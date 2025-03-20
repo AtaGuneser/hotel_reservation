@@ -58,9 +58,16 @@ export class RoomController {
     @Body() payload: UpdateRoomDto
   ): Promise<IRoom<"api">> {
     try {
+      logger.info(`UPDATE ROOM - ID: ${id}, Payload:`, JSON.stringify(payload, null, 2))
+      
+      if (typeof payload.category === 'string') {
+        payload.category = payload.category.toLowerCase() as RoomCategory
+      }
+      
       return await this.roomService.update(id, payload)
     } catch (error) {
       logger.error('Error updating room:', error)
+      logger.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
       throw error
     }
   }
