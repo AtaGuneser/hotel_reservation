@@ -10,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table"
-import { Badge } from "../../components/ui/badge"
 import { formatDate } from '../../utils/dateUtils'
 
 interface Room {
@@ -51,7 +50,10 @@ export default function Dashboard() {
       ])
 
       const rooms = roomsRes.data
-      const bookings = bookingsRes.data
+      const bookings = bookingsRes.data.map(booking => ({
+        ...booking,
+        roomNumber: rooms.find(room => room.id === booking.roomId)?.roomNumber || 'Unknown Room'
+      }))
 
       // Calculate statistics
       const totalRooms = rooms.length
@@ -96,7 +98,6 @@ export default function Dashboard() {
   if (error) {
     return <div className="p-6 text-red-500">Error loading dashboard data</div>
   }
-
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
@@ -157,7 +158,6 @@ export default function Dashboard() {
                   <TableHead>Booking ID</TableHead>
                   <TableHead>Room</TableHead>
                   <TableHead>Dates</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -169,15 +169,7 @@ export default function Dashboard() {
                     <TableCell>
                       {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        booking.status === 'CONFIRMED' ? 'default' :
-                        booking.status === 'PENDING' ? 'secondary' :
-                        booking.status === 'CANCELLED' ? 'destructive' : 'outline'
-                      }>
-                        {booking.status}
-                      </Badge>
-                    </TableCell>
+                    
                     <TableCell>${booking.totalPrice.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
