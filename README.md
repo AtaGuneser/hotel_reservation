@@ -108,7 +108,7 @@ hotel_reservation/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/hotel_reservation.git
+git clone https://github.com/AtaGuneser/hotel_reservation.git
 cd hotel_reservation
 ```
 
@@ -138,20 +138,13 @@ npm run dev
 Backend:
 ```bash
 cd backend
-npm run dev
+npm run start
 ```
 
 ## API Documentation
 
 The API documentation is available at `/api-docs` when running the backend server. It provides detailed information about all available endpoints, request/response formats, and authentication requirements.
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ## License
 
