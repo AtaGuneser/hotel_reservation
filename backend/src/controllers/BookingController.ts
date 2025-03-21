@@ -172,4 +172,14 @@ export class BookingController {
     
     return { available: isAvailable };
   }
+
+  @Get('/room/:roomId')
+  @OpenAPI({
+    summary: 'Get bookings by room ID',
+    description: 'Get a list of bookings for a specific room',
+    security: [{ bearerAuth: [] }]
+  })
+  async getBookingsByRoomId(@Param('roomId') roomId: string): Promise<ApiBooking[]> {
+    return this.bookingService.findAllByRoomId(roomId);
+  }
 } 

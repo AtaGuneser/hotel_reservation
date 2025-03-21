@@ -328,4 +328,25 @@ export class BookingService implements IBookingService {
       throw error
     }
   }
+
+  async findAllByRoomId(roomId: string): Promise<ApiBooking[]> {
+    try {
+      logger.info(`Finding bookings for room ID: ${roomId}`)
+      const collection = await this.getCollection()
+      
+      if (!ObjectId.isValid(roomId)) {
+        throw new BadRequestError(`Invalid room ID: ${roomId}`)
+      }
+      
+      const bookings = await collection
+        .find({ roomId: new ObjectId(roomId) })
+        .sort({ startDate: 1 })
+        .toArray()
+      
+      return bookings.map(this.transformToApi)
+    } catch (error) {
+      logger.error(`Error finding bookings for room ID: ${roomId}`, error)
+      throw error
+    }
+  }
 }

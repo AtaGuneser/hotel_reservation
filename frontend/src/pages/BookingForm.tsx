@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { ArrowLeft, Save, DollarSign } from 'lucide-react'
@@ -61,6 +61,17 @@ export default function BookingForm() {
     }
   })
   
+  // Fetch room bookings when a room is selected
+  const { data: roomBookings } = useQuery({
+    queryKey: ['room-bookings', formData.roomId],
+    queryFn: async () => {
+      if (!formData.roomId) return [];
+      const response = await api.get(`/bookings/room/${formData.roomId}`);
+      return response.data;
+    },
+    enabled: !!formData.roomId
+  });
+  
   // Create booking mutation
   const createMutation = useMutation({
     mutationFn: async (data: CreateBookingDto) => {
@@ -107,12 +118,36 @@ export default function BookingForm() {
     }
   }, [formData.roomId, formData.startDate, formData.endDate, rooms])
   
+  // Format booked dates for display
+  const getBookedDatesInfo = useCallback(() => {
+    if (!roomBookings?.length) return null;
+
+    const bookedDates = roomBookings.map((booking: ApiBooking) => ({
+      start: new Date(booking.startDate).toLocaleDateString(),
+      end: new Date(booking.endDate).toLocaleDateString()
+    }));
+
+    return (
+      <div className="mt-2 text-sm text-muted-foreground">
+        <p className="font-medium">Booked Dates:</p>
+        <ul className="list-disc list-inside">
+          {bookedDates.map((date: { start: string; end: string }, index: number) => (
+            <li key={index}>
+              {date.start} - {date.end}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }, [roomBookings]);
+  
   // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ 
       ...prev, 
-      [name]: name === 'startDate' || name === 'endDate' ? new Date(value) : value 
+      [name]: name === 'startDate' || name === 'endDate' ? new Date(value) : 
+              name === 'guestCount' ? parseInt(value, 10) : value 
     }))
     
     // Clear validation error when field is changed
@@ -154,6 +189,39 @@ export default function BookingForm() {
     return Object.keys(newErrors).length === 0
   }
   
+  // Check if room is available
+  const checkRoomAvailability = useCallback(async () => {
+    if (!formData.roomId || !formData.startDate || !formData.endDate) {
+      return false
+    }
+    
+    try {
+      const response = await api.get(`/bookings/room/${formData.roomId}/availability`, {
+        params: {
+          startDate: formData.startDate.toISOString(),
+          endDate: formData.endDate.toISOString()
+        }
+      })
+      
+      if (!response.data.available) {
+        setErrors(prev => ({
+          ...prev,
+          roomId: 'This room is not available for the selected dates'
+        }))
+        return false
+      }
+      
+      return true
+    } catch (error) {
+      console.error('Error checking room availability:', error)
+      setErrors(prev => ({
+        ...prev,
+        roomId: 'Error checking room availability'
+      }))
+      return false
+    }
+  }, [formData.roomId, formData.startDate, formData.endDate])
+  
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,6 +231,13 @@ export default function BookingForm() {
     
     if (!user?.id) {
       toast.error('User not authenticated');
+      return;
+    }
+    
+    // Check room availability before submitting
+    const isAvailable = await checkRoomAvailability();
+    if (!isAvailable) {
+      toast.error('Selected room is not available for these dates');
       return;
     }
     
@@ -207,38 +282,12 @@ export default function BookingForm() {
     }
   };
   
-  // Check if room is available
-  //   const checkRoomAvailability = async () => {
-  //   if (!formData.roomId || !formData.startDate || !formData.endDate) {
-  //     return false
-  //   }
-    
-  //   try {
-  //     const response = await api.get(`/bookings/room/${formData.roomId}/availability`, {
-  //       params: {
-  //         startDate: formData.startDate,
-  //         endDate: formData.endDate
-  //       }
-  //     })
-      
-  //     if (!response.data.available) {
-  //       setErrors(prev => ({
-  //         ...prev,
-  //         roomId: 'This room is not available for the selected dates'
-  //       }))
-  //       return false
-  //     }
-      
-  //     return true
-  //   } catch (error) {
-  //     console.error('Error checking room availability:', error)
-  //     setErrors(prev => ({
-  //       ...prev,
-  //       roomId: 'Error checking room availability'
-  //     }))
-  //     return false
-  //   }
-  // }
+  // Check availability when dates or room changes
+  useEffect(() => {
+    if (formData.roomId && formData.startDate && formData.endDate) {
+      checkRoomAvailability();
+    }
+  }, [formData.roomId, formData.startDate, formData.endDate, checkRoomAvailability]);
   
   if (isEditMode && isBookingLoading) {
     return <div className="p-8 text-center">Loading booking details...</div>
@@ -287,6 +336,7 @@ export default function BookingForm() {
               {errors.roomId && (
                 <p className="text-sm text-red-500">{errors.roomId}</p>
               )}
+              {formData.roomId && getBookedDatesInfo()}
             </div>
 
             {/* Dates */}
