@@ -7,7 +7,6 @@ import {
   Param,
   Body,
   NotFoundError,
-  Authorized,
   CurrentUser,
   QueryParam
 } from 'routing-controllers'
