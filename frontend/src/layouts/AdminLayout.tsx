@@ -1,7 +1,6 @@
 import { Link, Outlet, useLocation } from "react-router-dom"
 import { cn } from "../lib/utils"
 import {
-  LayoutDashboard,
   BedDouble,
   Calendar,
   LogOut,
@@ -10,11 +9,6 @@ import {
 import { useAuth } from "../hooks/useAuth"
 
 const sidebarItems = [
-  {
-    title: "Dashboard",
-    href: "/",
-    icon: LayoutDashboard,
-  },
   {
     title: "Rooms",
     href: "/rooms",

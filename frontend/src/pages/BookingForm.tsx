@@ -1,14 +1,27 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { ArrowLeft, Save, Calendar, Users, DollarSign, FileText } from 'lucide-react'
+import { ArrowLeft, Save, DollarSign } from 'lucide-react'
 import { api } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
-import {  calculateNights, getMinDate, getMaxDate } from '../utils/dateUtils'
+import { calculateNights, getMinDate, getMaxDate } from '../utils/dateUtils'
 import { BookingStatus, ApiBooking, CreateBookingDto, UpdateBookingDto } from '../types/booking'
 import { ApiRoom } from '../types/room'
 import { toast } from 'react-hot-toast'
 import axios from 'axios'
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Label } from "../components/ui/label"
+import { Textarea } from "../components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
+import { Separator } from "../components/ui/separator"
 
 export default function BookingForm() {
   const { id } = useParams<{ id: string }>()
@@ -148,21 +161,23 @@ export default function BookingForm() {
       return;
     }
     
+    if (!user?.id) {
+      toast.error('User not authenticated');
+      return;
+    }
+    
     const bookingData = {
       ...formData,
-      userId: user?.id,
+      userId: user.id,
       status: BookingStatus.PENDING,
-    };
-    
-    console.log('Submitting booking data:', bookingData);
+    } as CreateBookingDto;
     
     try {
       if (isEditMode && id) {
-        await api.put(`/bookings/${id}`, bookingData);
+        await updateMutation.mutateAsync(bookingData);
         toast.success('Booking updated successfully!');
       } else {
-        const response = await api.post('/bookings', bookingData);
-        console.log('Booking creation response:', response.data);
+        await createMutation.mutateAsync(bookingData);
         toast.success('Booking created successfully!');
       }
     } catch (error) {
@@ -244,161 +259,122 @@ export default function BookingForm() {
       </div>
       
       {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="p-6 space-y-6">
-          {/* Room Selection */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Room</label>
-            <select
-              name="roomId"
-              value={formData.roomId}
-              onChange={handleChange}
-              className={`w-full p-2 border rounded-md ${errors.roomId ? 'border-red-500' : 'border-gray-300'}`}
-              required
-            >
-              <option value="">Select a room</option>
-              {rooms?.map(room => (
-                <option key={room.id} value={room.id}>
-                  {room.name} - {room.type} (${room.price}/night, max {room.maxGuests} guests)
-                </option>
-              ))}
-            </select>
-            {errors.roomId && <p className="text-red-500 text-sm">{errors.roomId}</p>}
-          </div>
-          
-          {/* Date Range */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Booking Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Room Selection */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Check-in Date</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
+              <Label htmlFor="roomId">Room</Label>
+              <Select
+                name="roomId"
+                value={formData.roomId}
+                onValueChange={(value) => handleChange({ target: { name: 'roomId', value } } as React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a room" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rooms?.map((room) => (
+                    <SelectItem key={room.id} value={room.id}>
+                      {room.roomNumber} - ${room.price}/night
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.roomId && (
+                <p className="text-sm text-red-500">{errors.roomId}</p>
+              )}
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Check-in Date</Label>
+                <Input
                   type="date"
+                  id="startDate"
                   name="startDate"
                   value={formData.startDate?.toISOString().split('T')[0]}
                   onChange={handleChange}
                   min={getMinDate()}
                   max={getMaxDate()}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-md ${errors.startDate ? 'border-red-500' : 'border-gray-300'}`}
-                  required
                 />
+                {errors.startDate && (
+                  <p className="text-sm text-red-500">{errors.startDate}</p>
+                )}
               </div>
-              {errors.startDate && <p className="text-red-500 text-sm">{errors.startDate}</p>}
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Check-out Date</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
+
+              <div className="space-y-2">
+                <Label htmlFor="endDate">Check-out Date</Label>
+                <Input
                   type="date"
+                  id="endDate"
                   name="endDate"
                   value={formData.endDate?.toISOString().split('T')[0]}
                   onChange={handleChange}
-                  min={formData.startDate?.toISOString().split('T')[0] || getMinDate()}
+                  min={formData.startDate?.toISOString().split('T')[0]}
                   max={getMaxDate()}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-md ${errors.endDate ? 'border-red-500' : 'border-gray-300'}`}
-                  required
                 />
+                {errors.endDate && (
+                  <p className="text-sm text-red-500">{errors.endDate}</p>
+                )}
               </div>
-              {errors.endDate && <p className="text-red-500 text-sm">{errors.endDate}</p>}
             </div>
-          </div>
-          
-          {/* Guest Count & Total Price */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Guest Count */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Number of Guests</label>
-              <div className="relative">
-                <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="number"
-                  name="guestCount"
-                  value={formData.guestCount}
-                  onChange={handleChange}
-                  min="1"
-                  className={`w-full pl-10 pr-4 py-2 border rounded-md ${errors.guestCount ? 'border-red-500' : 'border-gray-300'}`}
-                  required
-                />
-              </div>
-              {errors.guestCount && <p className="text-red-500 text-sm">{errors.guestCount}</p>}
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Total Price</label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="number"
-                  name="totalPrice"
-                  value={formData.totalPrice}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  disabled
-                />
-              </div>
-              <p className="text-sm text-gray-500">Calculated automatically based on room and dates</p>
-            </div>
-          </div>
-          
-          {/* Status Selection (Admin only) */}
-          
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Status</label>
-              <select
-                name="status"
-                value={formData.status}
+              <Label htmlFor="guestCount">Number of Guests</Label>
+              <Input
+                type="number"
+                id="guestCount"
+                name="guestCount"
+                value={formData.guestCount}
                 onChange={handleChange}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              >
-                {Object.values(BookingStatus).map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
+                min={1}
+                max={rooms?.find(room => room.id === formData.roomId)?.maxGuests || 4}
+              />
+              {errors.guestCount && (
+                <p className="text-sm text-red-500">{errors.guestCount}</p>
+              )}
             </div>
-          
-          
-          {/* Special Requests */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Special Requests</label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-3 text-gray-400 h-4 w-4" />
-              <textarea
+
+            {/* Special Requests */}
+            <div className="space-y-2">
+              <Label htmlFor="specialRequests">Special Requests</Label>
+              <Textarea
+                id="specialRequests"
                 name="specialRequests"
-                value={formData.specialRequests || ''}
+                value={formData.specialRequests}
                 onChange={handleChange}
+                placeholder="Any special requests or requirements..."
                 rows={4}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md"
-                placeholder="Any special requests or requirements?"
               />
             </div>
-          </div>
-        </div>
-        
-        {/* Form Actions */}
-        <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-4">
-          <Link
-            to={isEditMode ? `/bookings/${id}` : '/bookings'}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-          >
-            Cancel
-          </Link>
-          
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-            disabled={createMutation.isPending || updateMutation.isPending}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {createMutation.isPending || updateMutation.isPending
-              ? 'Saving...'
-              : isEditMode
-                ? 'Update Booking'
-                : 'Create Booking'
-            }
-          </button>
-        </div>
-      </form>
+
+            <Separator />
+
+            {/* Total Price */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="h-5 w-5 text-gray-500" />
+                <span className="font-medium">Total Price:</span>
+              </div>
+              <span className="text-xl font-bold">${formData.totalPrice?.toFixed(2)}</span>
+            </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end">
+              <Button type="submit" className="flex items-center">
+                <Save className="h-4 w-4 mr-2" />
+                {isEditMode ? 'Update Booking' : 'Create Booking'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 } 

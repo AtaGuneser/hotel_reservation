@@ -6,6 +6,9 @@ import { useAuth } from '../hooks/useAuth'
 import { formatDate, calculateNights } from '../utils/dateUtils'
 import { ApiBooking } from '../types/booking'
 import { ApiRoom } from '../types/room'
+import { Button } from "../components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
+import { Badge } from "../components/ui/badge"
 
 // Status badge component
 const StatusBadge = ({ status }: { status: string }) => {
@@ -19,9 +22,9 @@ const StatusBadge = ({ status }: { status: string }) => {
   const color = statusColors[status] || 'bg-gray-100 text-gray-800 border-gray-200'
 
   return (
-    <span className={`px-3 py-1 rounded-full text-sm font-medium border ${color}`}>
+    <Badge variant="outline" className={color}>
       {status}
-    </span>
+    </Badge>
   )
 }
 
@@ -115,43 +118,45 @@ export default function BookingDetails() {
         
         <div className="flex space-x-2">
           {(isAdmin || booking.status === 'PENDING') && booking.status !== 'CANCELLED' && (
-            <button
+            <Button
               onClick={handleCancel}
-              className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200"
+              variant="outline"
+              className="text-yellow-800 hover:text-yellow-900 hover:bg-yellow-100"
             >
               Cancel Booking
-            </button>
+            </Button>
           )}
           
-          <Link
-            to={`/bookings/${id}/edit`}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
+          <Link to={`/bookings/${id}/edit`}>
+            <Button className="flex items-center">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
           </Link>
           
           {isAdmin && (
-            <button
+            <Button
               onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center"
+              variant="destructive"
+              className="flex items-center"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Booking Info */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold mb-4">Booking Information</h2>
-          
+      <Card>
+        <CardHeader>
+          <CardTitle>Booking Information</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <div className="flex items-start">
-                <Calendar className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+            <div className="space-y-4">
+              <div className="flex items-start space-x-3">
+                <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-sm text-gray-500">Stay Period</p>
                   <p className="font-medium">
@@ -161,16 +166,16 @@ export default function BookingDetails() {
                 </div>
               </div>
               
-              <div className="flex items-start">
-                <User className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+              <div className="flex items-start space-x-3">
+                <User className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-sm text-gray-500">Guests</p>
                   <p className="font-medium">{booking.guestCount} {booking.guestCount === 1 ? 'guest' : 'guests'}</p>
                 </div>
               </div>
               
-              <div className="flex items-start">
-                <DollarSign className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+              <div className="flex items-start space-x-3">
+                <DollarSign className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-sm text-gray-500">Total Price</p>
                   <p className="font-medium">${booking.totalPrice.toFixed(2)}</p>
@@ -178,28 +183,28 @@ export default function BookingDetails() {
               </div>
             </div>
             
-            <div className="space-y-3">
-              <div className="flex items-start">
-                <Home className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+            <div className="space-y-4">
+              <div className="flex items-start space-x-3">
+                <Home className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-sm text-gray-500">Room</p>
-                  <p className="font-medium">{room?.name || 'Loading...'}</p>
+                  <p className="font-medium">{room?.roomNumber || 'Loading...'}</p>
                   {room && (
                     <p className="text-sm text-gray-500">{room.type} - ${room.price}/night</p>
                   )}
                 </div>
               </div>
               
-              <div className="flex items-start">
-                <Clock className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+              <div className="flex items-start space-x-3">
+                <Clock className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-sm text-gray-500">Booking Created</p>
                   <p className="font-medium">{formatDate(booking.createdAt)}</p>
                 </div>
               </div>
               
-              <div className="flex items-start">
-                <FileText className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+              <div className="flex items-start space-x-3">
+                <FileText className="h-5 w-5 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-sm text-gray-500">Special Requests</p>
                   <p className="font-medium">
@@ -209,24 +214,28 @@ export default function BookingDetails() {
               </div>
             </div>
           </div>
-        </div>
-        
-        {room?.imageUrl && (
-          <div className="p-6 bg-gray-50">
-            <h3 className="text-lg font-medium mb-3">Room Preview</h3>
+        </CardContent>
+      </Card>
+      
+      {room?.imageUrl && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Room Preview</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="rounded-lg overflow-hidden">
               <img 
                 src={room.imageUrl} 
-                alt={room.name} 
+                alt={room.roomNumber} 
                 className="w-full h-48 object-cover"
               />
             </div>
             <div className="mt-3">
               <p className="text-sm text-gray-700">{room.description}</p>
             </div>
-          </div>
-        )}
-      </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 } 

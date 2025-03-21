@@ -13,7 +13,7 @@ export enum RoomStatus {
 
 export interface ApiRoom {
   id: string;
-  name: string;
+  roomNumber: string;
   description: string;
   type: RoomType | string;
   price: number;

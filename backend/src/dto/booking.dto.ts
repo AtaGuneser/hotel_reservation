@@ -1,12 +1,9 @@
 import {
   IsString,
   IsNumber,
-  IsDate,
   IsOptional,
   Min,
-  IsISO8601,
-  IsUUID,
-  ValidateIf
+  IsISO8601
 } from 'class-validator'
 import { Type } from 'class-transformer'
 

@@ -19,10 +19,10 @@ export function DataTableToolbar<TData>({
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
         <Input
-          placeholder="Filter rooms..."
-          value={(table.getColumn("roomNumber")?.getFilterValue() as string) ?? ""}
+          placeholder="Filter bookings..."
+          value={(table.getColumn("roomId")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
-            table.getColumn("roomNumber")?.setFilterValue(event.target.value)
+            table.getColumn("roomId")?.setFilterValue(event.target.value)
           }
           className="h-8 w-[150px] lg:w-[250px]"
         />
