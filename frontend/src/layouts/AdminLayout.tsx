@@ -3,12 +3,18 @@ import { cn } from "../lib/utils"
 import {
   BedDouble,
   Calendar,
+  LayoutDashboard,
   LogOut,
   User
 } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
 
 const sidebarItems = [
+  {
+    title: "Dashboard",
+    href: "/",
+    icon: LayoutDashboard,
+  },
   {
     title: "Rooms",
     href: "/rooms",
@@ -18,6 +24,11 @@ const sidebarItems = [
     title: "Bookings",
     href: "/bookings",      
     icon: Calendar,
+  },
+  {
+    title: "Users",
+    href: "/users",
+    icon: User,
   },
 ]
 

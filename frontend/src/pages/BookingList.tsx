@@ -208,7 +208,11 @@ export default function BookingList() {
       </div>
 
       <div className="space-y-4">
-        <DataTableToolbar table={table} />
+        <DataTableToolbar 
+          table={table} 
+          filterColumn="roomId"
+          filterPlaceholder="Filter bookings..."
+        />
         <div className="rounded-md border">
           <Table>
             <TableHeader>

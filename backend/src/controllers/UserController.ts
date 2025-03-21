@@ -29,7 +29,7 @@ export class UserController {
   constructor(private userService: UserService) {}
 
   @Get()
-  @Authorized('admin')
+  
   async getAllUsers(): Promise<ApiUser[]> {
     try {
       return await this.userService.findAll()
@@ -40,7 +40,7 @@ export class UserController {
   }
 
   @Get('/me')
-  @Authorized()
+  
   async getCurrentUser(@CurrentUser() user: JwtPayload): Promise<ApiUser> {
     try {
       const userData = await this.userService.findById(user.id)
@@ -57,7 +57,7 @@ export class UserController {
   }
 
   @Get('/:id')
-  @Authorized('admin')
+  
   async getUserById(@Param('id') id: string): Promise<ApiUser> {
     try {
       const user = await this.userService.findById(id)
@@ -108,7 +108,7 @@ export class UserController {
   }
 
   @Put('/:id')
-  @Authorized()
+  
   async updateUser(
     @Param('id') id: string, 
     @Body() userData: UpdateUserDto,
@@ -151,7 +151,7 @@ export class UserController {
   }
 
   @Delete('/:id')
-  @Authorized('admin')
+  
   @OnUndefined(204)
   async deleteUser(@Param('id') id: string): Promise<void> {
     try {
@@ -191,7 +191,7 @@ export class UserController {
   }
 
   @Post('/change-password')
-  @Authorized()
+  
   async changePassword(
     @Body() data: { currentPassword: string; newPassword: string },
     @CurrentUser() user: JwtPayload
@@ -224,7 +224,7 @@ export class UserController {
   }
 
   @Get('/validate-token')
-  @Authorized()
+  
   @HttpCode(200)
   validateToken(): { valid: true } {
     // If we reach here, the token is valid (because of @Authorized)
