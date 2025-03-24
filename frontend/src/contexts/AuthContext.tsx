@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactNode } from 'react'
+import React, { useState, useEffect, ReactNode, useCallback } from 'react'
 import { authAPI, ApiUser, LoginCredentials, UserRole } from '../services/api'
 import { AuthContext } from './context'
 
@@ -11,6 +11,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState<boolean>(false)
+
+  const verifyAdminStatus = useCallback(async () => {
+    if (!token) {
+      setIsAdmin(false)
+      return
+    }
+
+    try {
+      const currentUser = await authAPI.getCurrentUser()
+      setIsAdmin(currentUser.role === UserRole.ADMIN)
+    } catch (err) {
+      console.error('Error verifying admin status:', err)
+      setIsAdmin(false)
+      if (err instanceof Error && err.message.includes('401')) {
+        logout()
+      }
+    }
+  }, [token])
 
   useEffect(() => {
     // Check for saved token in localStorage
@@ -21,6 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         setToken(savedToken)
         setUser(JSON.parse(savedUser))
+        verifyAdminStatus()
       } catch (err) {
         // If there's an error parsing the user, clear the storage
         console.error('Error parsing user:', err)
@@ -30,7 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     
     setLoading(false)
-  }, [])
+  }, [token, verifyAdminStatus])
 
   const login = async (credentials: LoginCredentials) => {
     try {
@@ -44,6 +64,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Save to localStorage
       localStorage.setItem('authToken', response.token)
       localStorage.setItem('authUser', JSON.stringify(response.user))
+      
+      // Verify admin status after login
+      await verifyAdminStatus()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
       throw err
@@ -55,12 +78,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setUser(null)
     setToken(null)
+    setIsAdmin(false)
     localStorage.removeItem('authToken')
     localStorage.removeItem('authUser')
   }
 
   const isAuthenticated = !!token
-  const isAdmin = isAuthenticated && user?.role === UserRole.ADMIN
 
   return (
     <AuthContext.Provider
