@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router-dom"
+import { Link, Outlet, useRouter } from "@tanstack/react-router"
 import { cn } from "../lib/utils"
 import {
   BedDouble,
@@ -12,29 +12,29 @@ import { useAuth } from "../hooks/useAuth"
 const sidebarItems = [
   {
     title: "Dashboard",
-    href: "/",
+    href: "/admin",
     icon: LayoutDashboard,
   },
   {
     title: "Rooms",
-    href: "/rooms",
+    href: "/admin/rooms",
     icon: BedDouble,
   },
   {
     title: "Bookings",
-    href: "/bookings",      
+    href: "/admin/bookings",      
     icon: Calendar,
   },
   {
     title: "Users",
-    href: "/users",
+    href: "/admin/users",
     icon: User,
   },
 ]
 
 export default function AdminLayout() {
-  const location = useLocation()
-  const { user, logout } = useAuth()
+  const router = useRouter()
+  const { userData, logout } = useAuth()
 
   const handleLogout = () => {
     logout()
@@ -58,7 +58,7 @@ export default function AdminLayout() {
                 to={item.href}
                 className={cn(
                   "flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors",
-                  location.pathname === item.href
+                  router.state.location.pathname === item.href
                     ? "bg-gray-800 text-white"
                     : "text-gray-400 hover:bg-gray-800 hover:text-white"
                 )}
@@ -72,12 +72,12 @@ export default function AdminLayout() {
         
         {/* User Info and Logout */}
         <div className="mt-auto border-t border-gray-700 pt-4">
-          {user && (
+          {userData && (
             <div className="flex items-center px-4 py-2 text-gray-400">
               <User className="h-5 w-5 mr-2" />
               <div className="text-sm">
-                <div className="font-medium text-white">{user.firstName} {user.lastName}</div>
-                <div className="text-xs">{user.email}</div>
+                <div className="font-medium text-white">{userData.firstName} {userData.lastName}</div>
+                <div className="text-xs">{userData.email}</div>
               </div>
             </div>
           )}

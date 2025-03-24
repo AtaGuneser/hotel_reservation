@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
-import { useNavigate, Navigate, Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, Link } from '@tanstack/react-router'
 import { useAuth } from '../hooks/useAuth'
 import { LoginCredentials } from '../services/api'
 
 const Login: React.FC = () => {
-  const { login, logout, isAuthenticated, isAdmin, user, loading, error } = useAuth()
+  const { login, logout, isAuthenticated, isAdmin, userData, loading, error } = useAuth()
   const navigate = useNavigate()
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: 'johndoe@example.com',
@@ -12,20 +12,21 @@ const Login: React.FC = () => {
   })
   const [submitting, setSubmitting] = useState(false)
 
-  // If already authenticated and admin, redirect to dashboard
-  if (isAuthenticated && isAdmin) {
-    return <Navigate to="/admin" replace />
-  }
+  useEffect(() => {
+    if (isAuthenticated && isAdmin) {
+      navigate({ to: '/admin', replace: true })
+    }
+  }, [isAuthenticated, isAdmin, navigate])
 
   // If authenticated but not admin, show access denied
-  if (isAuthenticated && !isAdmin && user) {
+  if (isAuthenticated && !isAdmin && userData) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
           <div className="mb-6 text-center">
             <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
             <p className="mt-2 text-gray-600">
-              Sorry, {user.firstName}. Only administrators can access the admin panel.
+              Sorry, {userData.firstName}. Only administrators can access the admin panel.
             </p>
           </div>
           
@@ -54,7 +55,7 @@ const Login: React.FC = () => {
     
     try {
       await login(credentials)
-      navigate('/admin')
+      navigate({ to: '/admin', replace: true })
     } catch (err) {
       // Error is already handled in AuthContext
       console.error('Login failed:', err)
