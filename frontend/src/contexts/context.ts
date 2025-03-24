@@ -1,15 +1,23 @@
-import { createContext } from 'react'
-import { ApiUser, LoginCredentials } from '../services/api'
+import React from 'react'
+import { UserRole } from '../services/api'
+
+export interface UserData {
+  id: string
+  email: string
+  role: UserRole
+  firstName: string
+  lastName: string
+}
 
 export interface AuthContextType {
-  user: ApiUser | null
+  userData: UserData | null
   token: string | null
   isAuthenticated: boolean
   isAdmin: boolean
-  login: (credentials: LoginCredentials) => Promise<void>
+  login: (credentials: { email: string; password: string }) => Promise<void>
   logout: () => void
   loading: boolean
   error: string | null
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined) 
+export const AuthContext = React.createContext<AuthContextType | null>(null) 

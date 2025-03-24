@@ -1,56 +1,71 @@
 import React, { useState, useEffect, ReactNode, useCallback } from 'react'
-import { authAPI, ApiUser, LoginCredentials, UserRole } from '../services/api'
+import { authAPI, LoginCredentials, UserRole } from '../services/api'
 import { AuthContext } from './context'
+import { jwtDecode } from 'jwt-decode'
 
 interface AuthProviderProps {
   children: ReactNode
 }
 
+interface JWTPayload {
+  sub: string
+  email: string
+  role: UserRole
+  iat: number
+  exp: number
+}
+
+interface UserData {
+  id: string
+  email: string
+  role: UserRole
+  firstName: string
+  lastName: string
+}
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<ApiUser | null>(null)
+  const [userData, setUserData] = useState<UserData | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState<boolean>(false)
 
-  const verifyAdminStatus = useCallback(async () => {
-    if (!token) {
-      setIsAdmin(false)
-      return
-    }
-
+  const verifyToken = useCallback((token: string) => {
     try {
-      const currentUser = await authAPI.getCurrentUser()
-      setIsAdmin(currentUser.role === UserRole.ADMIN)
-    } catch (err) {
-      console.error('Error verifying admin status:', err)
-      setIsAdmin(false)
-      if (err instanceof Error && err.message.includes('401')) {
-        logout()
+      const decoded = jwtDecode<JWTPayload>(token)
+      const currentTime = Date.now() / 1000
+      
+      if (decoded.exp < currentTime) {
+        throw new Error('Token expired')
       }
+
+      return decoded
+    } catch (err) {
+      console.error('Token verification failed:', err)
+      return null
     }
-  }, [token])
+  }, [])
 
   useEffect(() => {
-    // Check for saved token in localStorage
     const savedToken = localStorage.getItem('authToken')
     const savedUser = localStorage.getItem('authUser')
     
     if (savedToken && savedUser) {
       try {
-        setToken(savedToken)
-        setUser(JSON.parse(savedUser))
-        verifyAdminStatus()
+        const decoded = verifyToken(savedToken)
+        if (decoded) {
+          setToken(savedToken)
+          setUserData(JSON.parse(savedUser))
+        } else {
+          logout()
+        }
       } catch (err) {
-        // If there's an error parsing the user, clear the storage
         console.error('Error parsing user:', err)
-        localStorage.removeItem('authToken')
-        localStorage.removeItem('authUser')
+        logout()
       }
     }
     
     setLoading(false)
-  }, [token, verifyAdminStatus])
+  }, [verifyToken])
 
   const login = async (credentials: LoginCredentials) => {
     try {
@@ -58,15 +73,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setError(null)
       
       const response = await authAPI.login(credentials.email, credentials.password)
-      setUser(response.user)
-      setToken(response.token)
+      const decoded = verifyToken(response.token)
       
-      // Save to localStorage
-      localStorage.setItem('authToken', response.token)
-      localStorage.setItem('authUser', JSON.stringify(response.user))
-      
-      // Verify admin status after login
-      await verifyAdminStatus()
+      if (decoded) {
+        setUserData(response.user)
+        setToken(response.token)
+        localStorage.setItem('authToken', response.token)
+        localStorage.setItem('authUser', JSON.stringify(response.user))
+      } else {
+        throw new Error('Invalid token received')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
       throw err
@@ -76,9 +92,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const logout = () => {
-    setUser(null)
+    setUserData(null)
     setToken(null)
-    setIsAdmin(false)
     localStorage.removeItem('authToken')
     localStorage.removeItem('authUser')
   }
@@ -88,10 +103,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return (
     <AuthContext.Provider
       value={{
-        user,
+        userData,
         token,
         isAuthenticated,
-        isAdmin,
+        isAdmin: userData?.role === UserRole.ADMIN,
         login,
         logout,
         loading,

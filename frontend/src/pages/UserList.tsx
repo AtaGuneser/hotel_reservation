@@ -39,8 +39,8 @@ interface User {
 }
 
 export default function UserList() {
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
+  const { userData } = useAuth()
+  const isAdmin = userData?.role === 'admin'
   const [rowSelection, setRowSelection] = useState({})
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
