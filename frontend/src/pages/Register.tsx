@@ -50,7 +50,7 @@ const Register: React.FC = () => {
     try {
       await authAPI.register(formData)
       toast.success('Registration successful! Please log in.')
-      navigate('/login')
+      navigate({ to: '/login' })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed'
       setError(message)

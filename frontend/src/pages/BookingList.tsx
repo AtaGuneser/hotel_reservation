@@ -50,8 +50,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 }
 
 export default function BookingList() {
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
+  const { isAdmin } = useAuth()
   const [rowSelection, setRowSelection] = useState({})
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -123,13 +122,15 @@ export default function BookingList() {
         return (
           <div className="space-x-2">
             <Link
-              to={`/bookings/${booking.id}`}
+              to="/admin/bookings/$bookingId"
+              params={{ bookingId: booking.id }}
               className="text-blue-600 hover:text-blue-900 inline-flex items-center"
             >
               <Eye className="h-4 w-4" />
             </Link>
             <Link
-              to={`/bookings/${booking.id}/edit`}
+              to="/admin/bookings/$bookingId/edit"
+              params={{ bookingId: booking.id }}
               className="text-yellow-600 hover:text-yellow-900 inline-flex items-center ml-2"
             >
               <Edit className="h-4 w-4" />
@@ -198,7 +199,7 @@ export default function BookingList() {
         
         {isAdmin && (
           <Link
-            to="/bookings/new"
+            to="/admin/bookings/new"
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
           >
             <Calendar className="mr-2 h-4 w-4" />

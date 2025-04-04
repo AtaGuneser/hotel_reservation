@@ -29,16 +29,15 @@ const StatusBadge = ({ status }: { status: string }) => {
 }
 
 export default function BookingDetails() {
-  const { id } = useParams<{ id: string }>()
+  const { bookingId } = useParams({ from: '/admin/bookings/$bookingId' })
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
-
+  const { isAdmin } = useAuth()
+  
   // Fetch booking details
   const { data: booking, isLoading, error } = useQuery<ApiBooking>({
-    queryKey: ['booking', id],
+    queryKey: ['booking', bookingId],
     queryFn: async () => {
-      const response = await api.get(`/bookings/${id}`)
+      const response = await api.get(`/bookings/${bookingId}`)
       return response.data
     }
   })
@@ -56,20 +55,20 @@ export default function BookingDetails() {
   // Cancel booking mutation
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      return api.put(`/bookings/${id}`, { status: 'CANCELLED' })
+      return api.put(`/bookings/${bookingId}`, { status: 'CANCELLED' })
     },
     onSuccess: () => {
-      navigate('/bookings')
+      navigate({ to: '/admin/bookings' })
     }
   })
 
   // Delete booking mutation (admin only)
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      return api.delete(`/bookings/${id}`)
+      return api.delete(`/bookings/${bookingId}`)
     },
     onSuccess: () => {
-      navigate('/bookings')
+      navigate({ to: '/admin/bookings' })
     }
   })
 
@@ -109,7 +108,7 @@ export default function BookingDetails() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
-          <Link to="/bookings" className="text-gray-500 hover:text-gray-700">
+          <Link to="/admin/bookings" className="text-gray-500 hover:text-gray-700">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-2xl font-bold">Booking Details</h1>
@@ -127,7 +126,7 @@ export default function BookingDetails() {
             </Button>
           )}
           
-          <Link to={`/bookings/${id}/edit`}>
+          <Link to="/admin/bookings/$bookingId/edit" params={{ bookingId }}>
             <Button className="flex items-center">
               <Edit className="h-4 w-4 mr-2" />
               Edit

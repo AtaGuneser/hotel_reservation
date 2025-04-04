@@ -24,11 +24,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Separator } from "../components/ui/separator"
 
 export default function BookingForm() {
-  const { id } = useParams<{ id: string }>()
+  const { bookingId } = useParams({ from: '/admin/bookings/$bookingId' })
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const isEditMode = !!id
-  
+  const { userData } = useAuth()
+  const isEditMode = !!bookingId
+
   // Form state
   const [formData, setFormData] = useState<CreateBookingDto | UpdateBookingDto>({
     roomId: '',
@@ -38,10 +38,10 @@ export default function BookingForm() {
     totalPrice: 0,
     specialRequests: ''
   })
-  
+
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({})
-  
+
   // Fetch rooms for selection
   const { data: rooms } = useQuery<ApiRoom[]>({
     queryKey: ['rooms'],
@@ -50,17 +50,17 @@ export default function BookingForm() {
       return response.data
     }
   })
-  
+
   // Fetch booking details if in edit mode
   const { data: booking, isLoading: isBookingLoading } = useQuery<ApiBooking>({
-    queryKey: ['booking', id],
+    queryKey: ['booking', bookingId],
     enabled: isEditMode,
     queryFn: async () => {
-      const response = await api.get(`/bookings/${id}`)
+      const response = await api.get(`/bookings/${bookingId}`)
       return response.data
     }
   })
-  
+
   // Fetch room bookings when a room is selected
   const { data: roomBookings } = useQuery({
     queryKey: ['room-bookings', formData.roomId],
@@ -71,27 +71,27 @@ export default function BookingForm() {
     },
     enabled: !!formData.roomId
   });
-  
+
   // Create booking mutation
   const createMutation = useMutation({
     mutationFn: async (data: CreateBookingDto) => {
       return api.post('/bookings', data)
     },
     onSuccess: () => {
-      navigate('/bookings')
+      navigate({ to: '/admin/bookings' })
     }
   })
-  
+
   // Update booking mutation
   const updateMutation = useMutation({
     mutationFn: async (data: UpdateBookingDto) => {
-      return api.put(`/bookings/${id}`, data)
+      return api.put(`/bookings/${bookingId}`, data)
     },
     onSuccess: () => {
-      navigate(`/bookings/${id}`)
+      navigate({ to: '/admin/bookings/$bookingId', params: { bookingId } })
     }
   })
-  
+
   // Set form data when booking is loaded in edit mode
   useEffect(() => {
     if (isEditMode && booking) {
@@ -105,7 +105,7 @@ export default function BookingForm() {
       })
     }
   }, [isEditMode, booking])
-  
+
   // Calculate total price when room, start date, or end date changes
   useEffect(() => {
     if (formData.roomId && formData.startDate && formData.endDate) {
@@ -117,7 +117,7 @@ export default function BookingForm() {
       }
     }
   }, [formData.roomId, formData.startDate, formData.endDate, rooms])
-  
+
   // Format booked dates for display
   const getBookedDatesInfo = useCallback(() => {
     if (!roomBookings?.length) return null;
@@ -140,61 +140,61 @@ export default function BookingForm() {
       </div>
     );
   }, [roomBookings]);
-  
+
   // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: name === 'startDate' || name === 'endDate' ? new Date(value) : 
-              name === 'guestCount' ? parseInt(value, 10) : value 
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'startDate' || name === 'endDate' ? new Date(value) :
+        name === 'guestCount' ? parseInt(value, 10) : value
     }))
-    
+
     // Clear validation error when field is changed
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
   }
-  
+
   // Validate form
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
-    
+
     if (!formData.roomId) {
       newErrors.roomId = 'Please select a room'
     }
-    
+
     if (!formData.startDate) {
       newErrors.startDate = 'Please select a check-in date'
     }
-    
+
     if (!formData.endDate) {
       newErrors.endDate = 'Please select a check-out date'
     }
-    
+
     if (formData.startDate && formData.endDate && formData.startDate >= formData.endDate) {
       newErrors.endDate = 'Check-out date must be after check-in date'
     }
-    
+
     if (formData.guestCount && formData.guestCount < 1) {
       newErrors.guestCount = 'Must have at least 1 guest'
     }
-    
+
     const selectedRoom = rooms?.find(room => room.id === formData.roomId)
     if (selectedRoom && formData.guestCount && formData.guestCount > selectedRoom.maxGuests) {
       newErrors.guestCount = `Maximum ${selectedRoom.maxGuests} guests allowed for this room`
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-  
+
   // Check if room is available
   const checkRoomAvailability = useCallback(async () => {
     if (!formData.roomId || !formData.startDate || !formData.endDate) {
       return false
     }
-    
+
     try {
       const response = await api.get(`/bookings/room/${formData.roomId}/availability`, {
         params: {
@@ -202,7 +202,7 @@ export default function BookingForm() {
           endDate: formData.endDate.toISOString()
         }
       })
-      
+
       if (!response.data.available) {
         setErrors(prev => ({
           ...prev,
@@ -210,7 +210,7 @@ export default function BookingForm() {
         }))
         return false
       }
-      
+
       return true
     } catch (error) {
       console.error('Error checking room availability:', error)
@@ -221,34 +221,34 @@ export default function BookingForm() {
       return false
     }
   }, [formData.roomId, formData.startDate, formData.endDate])
-  
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
       return;
     }
-    
-    if (!user?.id) {
+
+    if (!userData?.id) {
       toast.error('User not authenticated');
       return;
     }
-    
+
     // Check room availability before submitting
     const isAvailable = await checkRoomAvailability();
     if (!isAvailable) {
       toast.error('Selected room is not available for these dates');
       return;
     }
-    
+
     const bookingData = {
       ...formData,
-      userId: user.id,
+      userId: userData.id,
       status: BookingStatus.PENDING,
     } as CreateBookingDto;
-    
+
     try {
-      if (isEditMode && id) {
+      if (isEditMode && bookingId) {
         await updateMutation.mutateAsync(bookingData);
         toast.success('Booking updated successfully!');
       } else {
@@ -265,7 +265,7 @@ export default function BookingForm() {
             property: string;
             constraints?: Record<string, string>;
           }
-          
+
           const serverErrors = error.response.data.errors.reduce((acc: Record<string, string>, err: ValidationError) => {
             const field = err.property;
             acc[field] = err.constraints ? Object.values(err.constraints)[0] as string : 'Invalid value';
@@ -281,32 +281,32 @@ export default function BookingForm() {
       }
     }
   };
-  
+
   // Check availability when dates or room changes
   useEffect(() => {
     if (formData.roomId && formData.startDate && formData.endDate) {
       checkRoomAvailability();
     }
   }, [formData.roomId, formData.startDate, formData.endDate, checkRoomAvailability]);
-  
+
   if (isEditMode && isBookingLoading) {
     return <div className="p-8 text-center">Loading booking details...</div>
   }
-  
+
   // Check if the user has permission to edit this booking
-  
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center mb-6 space-x-4">
-        <Link to={isEditMode ? `/bookings/${id}` : '/bookings'} className="text-gray-500 hover:text-gray-700">
+        <Link to={isEditMode ? "/admin/bookings/$bookingId" : "/admin/bookings"} params={isEditMode ? { bookingId } : undefined} className="text-gray-500 hover:text-gray-700">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <h1 className="text-2xl font-bold">
           {isEditMode ? 'Edit Booking' : 'New Booking'}
         </h1>
       </div>
-      
+
       {/* Form */}
       <Card>
         <CardHeader>
