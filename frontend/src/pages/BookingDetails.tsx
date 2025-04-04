@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { ArrowLeft, Edit, Trash2, Calendar, User, Home, DollarSign, FileText, Clock } from 'lucide-react'
 import { api } from '../services/api'

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link } from '@tanstack/react-router'
 import { Calendar, Edit, Trash2, Eye } from 'lucide-react'
 import { api, Room } from '../services/api'
 import { useAuth } from '../hooks/useAuth'

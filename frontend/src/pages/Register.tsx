@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link } from '@tanstack/react-router'
 import { authAPI, RegisterUserDto, UserRole } from '../services/api'
 import { toast } from 'sonner'
 
